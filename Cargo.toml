@@ -3,7 +3,7 @@ name = "isengard-returns"
 version = "0.1.0"
 edition = "2018"
 authors = ["Gabriel Martinez <reitaka@gmail.com>",
-            "Sahil Khanna <sahilsan@gmail.com>"]
+           "Sahil Khanna <sahilsan@gmail.com>"]
 
 [dependencies]
 ggez = "0.5.0-rc.2"
