@@ -8,4 +8,3 @@ authors = ["Gabriel Martinez <reitaka@gmail.com>",
 [dependencies]
 ggez = "0.5.0-rc.2"
 specs = { version = "0.15", features = ["specs-derive"] }
-specs-derive = "0.4"

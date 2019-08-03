@@ -1,4 +1,7 @@
-use specs::{prelude::*, Component};
+use specs::{
+    prelude::*,
+    Component
+};
 
 #[derive(Clone, Copy, Debug, Component)]
 #[storage(VecStorage)]
