@@ -1,11 +1,8 @@
-use specs::prelude::*;
+use specs::{prelude::*, Component};
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, Component)]
+#[storage(VecStorage)]
 pub struct Transform {
     pub x: f32,
     pub y: f32,
-}
-
-impl Component for Transform {
-    type Storage = VecStorage<Self>;
 }

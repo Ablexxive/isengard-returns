@@ -1,4 +1,5 @@
 use specs::prelude::*;
+
 use crate::components::*;
 
 pub struct ShowPosition;

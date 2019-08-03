@@ -1,10 +1,11 @@
 use ggez::*;
 use specs::prelude::*;
 
-mod components;
 use components::Transform;
-mod systems;
 use systems::ShowPosition;
+
+mod components;
+mod systems;
 
 struct State {}
 
@@ -43,4 +44,3 @@ fn main() {
         .unwrap();
     event::run(ctx, event_loop, state).unwrap();
 }
-
