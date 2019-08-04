@@ -1,8 +1,7 @@
 use ggez::*;
-use mint::Point2;
 use specs::prelude::*;
 
-use components::Transform;
+use components::*;
 //use systems::ShowPosition;
 
 mod components;
@@ -23,17 +22,32 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx, graphics::BLACK);
 
-        let transforms: (ReadStorage<Transform>) = self.world.system_data();
-        for transform in transforms.join() {
-            let circle = graphics::Mesh::new_circle(
-                ctx,
-                graphics::DrawMode::fill(),
-                Point2{x: transform.x, y: transform.y},
-                20.0,
-                0.1,
-                graphics::WHITE,
-            )?;
-            graphics::draw(ctx, &circle, graphics::DrawParam::default())?;
+        let system_data: (ReadStorage<Transform>, ReadStorage<Drawable>) = self.world.system_data();
+        let (transforms, drawables) = system_data;
+
+        for (transform, drawable) in (&transforms, &drawables).join() {
+            let mesh = match drawable {
+                Drawable::Tower => {
+                    graphics::Mesh::new_circle(
+                        ctx,
+                        graphics::DrawMode::fill(),
+                        mint::Point2{x: 0.0, y: 0.0},
+                        20.0,
+                        0.1,
+                        graphics::WHITE,
+                    )?
+                },
+                Drawable::Enemy => {
+                    graphics::Mesh::new_rectangle(
+                        ctx,
+                        graphics::DrawMode::fill(),
+                        graphics::Rect::new_i32(-20, -20, 40, 40),
+                        graphics::Color::from_rgb(255, 0, 0),
+                    )?
+                },
+            };
+
+            graphics::draw(ctx, &mesh, graphics::DrawParam::default().dest(transform.position))?;
         }
 
         graphics::present(ctx)?;
@@ -45,17 +59,27 @@ impl<'a, 'b> State<'a, 'b> {
     fn new() -> Self {
         let mut world = World::new();
         world.register::<Transform>();
+        world.register::<Drawable>();
         let mut dispatcher = DispatcherBuilder::new()
             //.with(ShowPosition, "show_position", &[])
             .build();
 
         dispatcher.setup(&mut world);
 
-        // Tmp Enteties
-        for idx in 0..10 {
+        // Towers
+        for idx in 1..3 {
             let idx = idx as f32;
-            world.create_entity().with(Transform { x: idx*50.0, y: idx*100.0 }).build();
+            world.create_entity()
+                .with(Transform::new(idx*50.0, idx*100.0))
+                .with(Drawable::Tower)
+                .build();
         }
+
+        // Enemy
+        world.create_entity()
+            .with(Transform::new(120.0, 200.0))
+            .with(Drawable::Enemy)
+            .build();
 
         Self {
             world,
