@@ -1,46 +1,79 @@
 use ggez::*;
+use mint::Point2;
 use specs::prelude::*;
 
 use components::Transform;
-use systems::ShowPosition;
+//use systems::ShowPosition;
 
 mod components;
 mod systems;
 
-struct State {}
+struct State<'a, 'b> {
+    world: World,
+    dispatcher: Dispatcher<'a, 'b>,
+}
 
-impl ggez::event::EventHandler for State {
+impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
     fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
+        self.dispatcher.dispatch(&mut self.world);
+        self.world.maintain();
         Ok(())
     }
-    fn draw(&mut self, _ctx: &mut Context) -> GameResult<()> {
+
+    fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
+        graphics::clear(ctx, graphics::BLACK);
+
+        let transforms: (ReadStorage<Transform>) = self.world.system_data();
+        for transform in transforms.join() {
+            let circle = graphics::Mesh::new_circle(
+                ctx,
+                graphics::DrawMode::fill(),
+                Point2{x: transform.x, y: transform.y},
+                20.0,
+                0.1,
+                graphics::WHITE,
+            )?;
+            graphics::draw(ctx, &circle, graphics::DrawParam::default())?;
+        }
+
+        graphics::present(ctx)?;
         Ok(())
     }
 }
 
-fn main() {
-    let mut world = World::new();
-    let mut dispatcher = DispatcherBuilder::new()
-        .with(ShowPosition, "show_position", &[])
-        .build();
+impl<'a, 'b> State<'a, 'b> {
+    fn new() -> Self {
+        let mut world = World::new();
+        world.register::<Transform>();
+        let mut dispatcher = DispatcherBuilder::new()
+            //.with(ShowPosition, "show_position", &[])
+            .build();
 
-    dispatcher.setup(&mut world);
+        dispatcher.setup(&mut world);
 
-    for idx in 0..10 {
-        let idx = idx as f32;
-        world.create_entity().with(Transform { x: idx, y: idx*2.0 }).build();
+        // Tmp Enteties
+        for idx in 0..10 {
+            let idx = idx as f32;
+            world.create_entity().with(Transform { x: idx*50.0, y: idx*100.0 }).build();
+        }
+
+        Self {
+            world,
+            dispatcher,
+        }
     }
 
-    dispatcher.dispatch(&mut world);
-    world.maintain();
+}
+
+fn main() {
 
     // State via ggez
-    let state = &mut State { };
+    let mut state = State::new();
 
     let config = conf::Conf::new();
     let (ref mut ctx, ref mut event_loop) = ContextBuilder::new("isengard_returns", "studio_giblets")
         .conf(config)
         .build()
         .unwrap();
-    event::run(ctx, event_loop, state).unwrap();
+    event::run(ctx, event_loop, &mut state).unwrap();
 }

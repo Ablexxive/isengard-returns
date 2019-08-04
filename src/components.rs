@@ -4,8 +4,15 @@ use specs::{
 };
 
 #[derive(Clone, Copy, Debug, Component)]
-#[storage(VecStorage)]
 pub struct Transform {
     pub x: f32,
     pub y: f32,
+}
+
+#[derive(Clone, Debug, Component)]
+pub struct Drawable {
+}
+
+#[derive(Clone, Debug, Component)]
+pub struct Shooter {
 }
