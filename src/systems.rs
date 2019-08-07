@@ -1,3 +1,4 @@
+use ggez::nalgebra;
 use specs::prelude::*;
 
 use crate::components::*;
@@ -22,11 +23,44 @@ impl<'a> System<'a> for UpdatePosition {
                        ReadStorage<'a, Velocity>);
 
     fn run(&mut self, data: Self::SystemData) {
-        let (dt, mut pos, vel) = data;
+        let (dt, mut transforms, vel) = data;
 
-        for (pos, vel) in (&mut pos, & vel).join() {
-            pos.position.x += dt.0*vel.x;
-            pos.position.y += dt.0*vel.y;
+        for (transform, vel) in (&mut transforms, &vel).join() {
+            transform.position.x += dt.0*vel.x;
+            transform.position.y += dt.0*vel.y;
         }
     }
+}
+
+pub struct ShooterSystem;
+
+impl<'a> System<'a> for ShooterSystem {
+    type SystemData = (Read<'a, DeltaTime>,
+                       ReadStorage<'a, Transform>,
+                       WriteStorage<'a, Shooter>,
+                       ReadStorage<'a, Faction>);
+
+    fn run(&mut self, data: Self::SystemData) {
+        let (dt, transforms, mut shooters, factions) = data;
+
+        for (transform, shooter,  faction) in (&transforms, &mut shooters, &factions).join() {
+            if shooter.cooldown > 0.0{
+                shooter.cooldown -= dt.0;
+            } else {
+                for (target_transform, target_fraction) in (&transforms, &factions) .join(){
+                    if target_fraction != faction {
+                        let distance = nalgebra::distance(&transform.position, &target_transform.position);
+                        if distance <= shooter.attack_radius {
+                            // TODO: Spawn a projectile
+
+                            shooter.cooldown = shooter.seconds_per_attack;
+                            println!("Inner loop - found an enemy");
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 }

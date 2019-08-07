@@ -1,4 +1,4 @@
-use ggez::mint::Point2;
+use ggez::nalgebra::Point2;
 use specs::{
     prelude::*,
     Component
@@ -15,7 +15,7 @@ pub struct Transform {
 impl Transform {
     pub fn new(x: f32, y: f32) -> Self {
         Self {
-            position: Point2 { x, y },
+            position: Point2::new(x, y),
         }
     }
 }
@@ -28,6 +28,15 @@ pub enum Drawable {
 
 #[derive(Clone, Debug, Component)]
 pub struct Shooter {
+    pub seconds_per_attack: f32,
+    pub cooldown: f32,
+    pub attack_radius: f32,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Component)]
+pub enum Faction {
+    Player,
+    Enemy,
 }
 
 #[derive(Clone, Debug, Component)]

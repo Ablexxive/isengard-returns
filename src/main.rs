@@ -29,8 +29,8 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx, graphics::BLACK);
 
-        let system_data: (ReadStorage<Transform>, ReadStorage<Drawable>) = self.world.system_data();
-        let (transforms, drawables) = system_data;
+        let system_data: (ReadStorage<Transform>, ReadStorage<Drawable>, ReadStorage<Shooter>) = self.world.system_data();
+        let (transforms, drawables, shooters) = system_data;
 
         for (transform, drawable) in (&transforms, &drawables).join() {
             let mesh = match drawable {
@@ -57,6 +57,18 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             graphics::draw(ctx, &mesh, graphics::DrawParam::default().dest(transform.position))?;
         }
 
+        for (transform, shooter) in (&transforms, &shooters).join() {
+            let mesh = graphics::Mesh::new_circle(
+                       ctx,
+                       graphics::DrawMode::stroke(3.0),
+                       mint::Point2{x: 0.0, y: 0.0},
+                       shooter.attack_radius,
+                       0.1,
+                       graphics::WHITE,
+                   )?;
+            graphics::draw(ctx, &mesh, graphics::DrawParam::default().dest(transform.position))?;
+        }
+
         graphics::present(ctx)?;
         Ok(())
     }
@@ -69,6 +81,7 @@ impl<'a, 'b> State<'a, 'b> {
         world.register::<Drawable>();
         let mut dispatcher = DispatcherBuilder::new()
             .with(UpdatePosition, "update_position", &[])
+            .with(ShooterSystem, "shooter_system", &["update_position"])
             .build();
 
         dispatcher.setup(&mut world);
@@ -77,16 +90,19 @@ impl<'a, 'b> State<'a, 'b> {
         for idx in 1..3 {
             let idx = idx as f32;
             world.create_entity()
-                .with(Transform::new(idx*50.0, idx*100.0))
+                .with(Transform::new(idx*100.0, idx*150.0))
                 .with(Drawable::Tower)
+                .with(Faction::Player)
+                .with(Shooter { seconds_per_attack: 1.0, cooldown: 0.0, attack_radius: 100.0 })
                 .build();
         }
 
         // Enemy
         world.create_entity()
             .with(Transform::new(0.0, 0.0))
-            .with(Velocity { x: 5.0, y: 5.0 })
+            .with(Velocity { x: 20.0, y: 20.0 })
             .with(Drawable::Enemy)
+            .with(Faction::Enemy)
             .build();
 
         Self {
