@@ -14,3 +14,19 @@ impl<'a> System<'a> for ShowPosition {
     }
 }
 
+pub struct UpdatePosition;
+
+impl<'a> System<'a> for UpdatePosition {
+    type SystemData = (Read<'a, DeltaTime>,
+                       WriteStorage<'a, Transform>,
+                       ReadStorage<'a, Velocity>);
+
+    fn run(&mut self, data: Self::SystemData) {
+        let (dt, mut pos, vel) = data;
+
+        for (pos, vel) in (&mut pos, & vel).join() {
+            pos.position.x += dt.0*vel.x;
+            pos.position.y += dt.0*vel.y;
+        }
+    }
+}

@@ -4,6 +4,9 @@ use specs::{
     Component
 };
 
+#[derive(Default)]
+pub struct DeltaTime(pub f32);
+
 #[derive(Clone, Copy, Debug, Component)]
 pub struct Transform {
     pub position: Point2<f32>,
@@ -25,4 +28,10 @@ pub enum Drawable {
 
 #[derive(Clone, Debug, Component)]
 pub struct Shooter {
+}
+
+#[derive(Clone, Debug, Component)]
+pub struct Velocity {
+    pub x: f32,
+    pub y: f32,
 }

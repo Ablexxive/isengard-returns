@@ -2,7 +2,7 @@ use ggez::*;
 use specs::prelude::*;
 
 use components::*;
-//use systems::ShowPosition;
+use systems::*;
 
 mod components;
 mod systems;
@@ -13,7 +13,14 @@ struct State<'a, 'b> {
 }
 
 impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
-    fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
+    fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
+        {
+            // Sets the time and updates it
+            let mut delta = self.world.write_resource::<DeltaTime>();
+            let duration = timer::duration_to_f64(timer::delta(ctx));
+            *delta = DeltaTime(duration as f32);
+        }
+
         self.dispatcher.dispatch(&mut self.world);
         self.world.maintain();
         Ok(())
@@ -61,7 +68,7 @@ impl<'a, 'b> State<'a, 'b> {
         world.register::<Transform>();
         world.register::<Drawable>();
         let mut dispatcher = DispatcherBuilder::new()
-            //.with(ShowPosition, "show_position", &[])
+            .with(UpdatePosition, "update_position", &[])
             .build();
 
         dispatcher.setup(&mut world);
@@ -77,7 +84,8 @@ impl<'a, 'b> State<'a, 'b> {
 
         // Enemy
         world.create_entity()
-            .with(Transform::new(120.0, 200.0))
+            .with(Transform::new(0.0, 0.0))
+            .with(Velocity { x: 5.0, y: 5.0 })
             .with(Drawable::Enemy)
             .build();
 
@@ -90,7 +98,6 @@ impl<'a, 'b> State<'a, 'b> {
 }
 
 fn main() {
-
     // State via ggez
     let mut state = State::new();
 
