@@ -1,4 +1,4 @@
-use ggez::nalgebra::Point2;
+use ggez::nalgebra::{Point2, Vector2};
 use specs::{
     prelude::*,
     Component
@@ -24,6 +24,7 @@ impl Transform {
 pub enum Drawable {
     Tower,
     Enemy,
+    Projectile,
 }
 
 #[derive(Clone, Debug, Component)]
@@ -40,7 +41,10 @@ pub enum Faction {
 }
 
 #[derive(Clone, Debug, Component)]
-pub struct Velocity {
-    pub x: f32,
-    pub y: f32,
+pub struct Velocity(pub Vector2<f32>);
+
+impl Velocity {
+    pub fn new(x: f32, y:f32) -> Self {
+        Self(Vector2::new(x, y))
+    }
 }

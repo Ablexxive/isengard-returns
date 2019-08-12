@@ -52,6 +52,16 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
                         graphics::Color::from_rgb(255, 0, 0),
                     )?
                 },
+                Drawable::Projectile => {
+                    graphics::Mesh::new_circle(
+                        ctx,
+                        graphics::DrawMode::fill(),
+                        mint::Point2{x: 0.0, y: 0.0},
+                        5.0,
+                        0.1,
+                        graphics::Color::from_rgb(0, 0, 255),
+                    )?
+                },
             };
 
             graphics::draw(ctx, &mesh, graphics::DrawParam::default().dest(transform.position))?;
@@ -100,7 +110,7 @@ impl<'a, 'b> State<'a, 'b> {
         // Enemy
         world.create_entity()
             .with(Transform::new(0.0, 0.0))
-            .with(Velocity { x: 20.0, y: 20.0 })
+            .with(Velocity::new(20.0, 20.0))
             .with(Drawable::Enemy)
             .with(Faction::Enemy)
             .build();

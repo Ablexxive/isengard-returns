@@ -26,8 +26,7 @@ impl<'a> System<'a> for UpdatePosition {
         let (dt, mut transforms, vel) = data;
 
         for (transform, vel) in (&mut transforms, &vel).join() {
-            transform.position.x += dt.0*vel.x;
-            transform.position.y += dt.0*vel.y;
+            transform.position += dt.0*vel.0;
         }
     }
 }
@@ -36,12 +35,14 @@ pub struct ShooterSystem;
 
 impl<'a> System<'a> for ShooterSystem {
     type SystemData = (Read<'a, DeltaTime>,
+                       Entities<'a>,
+                       Read<'a, LazyUpdate>,
                        ReadStorage<'a, Transform>,
                        WriteStorage<'a, Shooter>,
                        ReadStorage<'a, Faction>);
 
     fn run(&mut self, data: Self::SystemData) {
-        let (dt, transforms, mut shooters, factions) = data;
+        let (dt, ent, lazy, transforms, mut shooters, factions) = data;
 
         for (transform, shooter,  faction) in (&transforms, &mut shooters, &factions).join() {
             if shooter.cooldown > 0.0{
@@ -49,11 +50,24 @@ impl<'a> System<'a> for ShooterSystem {
             } else {
                 for (target_transform, target_fraction) in (&transforms, &factions) .join(){
                     if target_fraction != faction {
+                        // Determine if enemy is within range of the tower
                         let distance = nalgebra::distance(&transform.position, &target_transform.position);
                         if distance <= shooter.attack_radius {
-                            // TODO: Spawn a projectile
-
                             shooter.cooldown = shooter.seconds_per_attack;
+                            // TODO - Spawn a projectile
+                            let projectile = ent.create();
+                            lazy.insert(projectile, *transform);
+                            lazy.insert(projectile, Drawable::Projectile);
+                            lazy.insert(projectile, *faction);
+
+                            let direction = (target_transform.position - transform.position).normalize();
+                            let velocity = direction * 100.0;
+                            lazy.insert(projectile, Velocity(velocity));
+
+                            // TODO - Have the projectile follow the enemy
+
+                            // TODO - Have it collide
+
                             println!("Inner loop - found an enemy");
                             break;
                         }
