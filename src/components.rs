@@ -48,3 +48,21 @@ impl Velocity {
         Self(Vector2::new(x, y))
     }
 }
+
+#[derive(Clone, Debug, Component)]
+pub struct Collider {
+    pub width: f32,
+    pub height: f32,
+}
+
+impl Collider {
+    pub fn new(width: f32, height: f32) -> Self {
+        Self {
+            width,
+            height,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Component)]
+pub struct Projectile {}

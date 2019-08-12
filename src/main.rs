@@ -5,6 +5,7 @@ use components::*;
 use systems::*;
 
 mod components;
+mod rect;
 mod systems;
 
 struct State<'a, 'b> {
@@ -90,8 +91,9 @@ impl<'a, 'b> State<'a, 'b> {
         world.register::<Transform>();
         world.register::<Drawable>();
         let mut dispatcher = DispatcherBuilder::new()
-            .with(UpdatePosition, "update_position", &[])
-            .with(ShooterSystem, "shooter_system", &["update_position"])
+            .with(ShooterSystem, "shooter_system", &[])
+            .with(UpdatePosition, "update_position", &["shooter_system"])
+            .with(CollisionSystem, "collision_system", &["update_position"])
             .build();
 
         dispatcher.setup(&mut world);
@@ -113,6 +115,7 @@ impl<'a, 'b> State<'a, 'b> {
             .with(Velocity::new(20.0, 20.0))
             .with(Drawable::Enemy)
             .with(Faction::Enemy)
+            .with(Collider::new(40.0, 40.0))
             .build();
 
         Self {

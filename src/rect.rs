@@ -8,15 +8,6 @@ pub struct Rect {
 }
 
 impl Rect {
-    pub fn new() -> Self {
-        Self {
-            x: 0.0,
-            y: 0.0,
-            width: 0,
-            height: 0,
-        }
-    }
-
     #[inline]
     pub fn left(&self) -> f32 {
         self.x - (self.width as f32 / 2.0)
