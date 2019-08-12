@@ -1,15 +1,15 @@
 /// A rectangle centered at (x, y).
 #[derive(Clone, Default)]
-pub struct Rectangle {
+pub struct Rect {
     pub x: f32,
     pub y: f32,
     pub width: f32,
     pub height: f32,
 }
 
-impl Rectangle {
-    pub fn new() -> Rectangle {
-        Rectangle {
+impl Rect {
+    pub fn new() -> Self {
+        Self {
             x: 0.0,
             y: 0.0,
             width: 0,
@@ -37,7 +37,7 @@ impl Rectangle {
         self.y + (self.height as f32 / 2.0)
     }
 
-    pub fn overlaps(&self, other: &Rectangle) -> bool {
+    pub fn overlaps(&self, other: &Rect) -> bool {
         self.right() > other.left() &&
         self.left() < other.right() &&
         self.top() < other.bottom() &&
