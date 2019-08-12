@@ -66,3 +66,13 @@ impl Collider {
 
 #[derive(Clone, Debug, Component)]
 pub struct Projectile {}
+
+#[derive(Clone, Debug, Component)]
+pub struct Attacker {
+    pub damage: u32,
+}
+
+#[derive(Clone, Debug, Component)]
+pub struct Health {
+    pub current_hp: u32,
+}

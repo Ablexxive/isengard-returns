@@ -58,11 +58,8 @@ impl<'a> System<'a> for ShooterSystem {
                             let velocity = direction * 100.0;
                             lazy.insert(projectile, Velocity(velocity));
 
-                            // TODO - Have it collide
                             lazy.insert(projectile, Collider::new(8.0, 8.0));
-
-
-                            println!("Inner loop - found an enemy");
+                            lazy.insert(projectile, Attacker {damage: 1});
                             break;
                         }
                     }
@@ -72,20 +69,27 @@ impl<'a> System<'a> for ShooterSystem {
     }
 }
 
+pub struct CollisionEvent {
+    entity_a: Entity,
+    entity_b: Entity,
+}
+
 pub struct CollisionSystem;
 
 impl<'a> System<'a> for CollisionSystem {
     type SystemData = (
+        Entities<'a>,
         ReadStorage<'a, Projectile>,
         ReadStorage<'a, Transform>,
         ReadStorage<'a, Faction>,
         ReadStorage<'a, Collider>,
+        Write<'a, Vec<CollisionEvent>>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (projectiles, transforms, factions, colliders) = data;
+        let (ents, projectiles, transforms, factions, colliders, mut collision_events) = data;
 
-        for (_projectile, transform, faction, collider) in (&projectiles, &transforms, &factions, &colliders).join() {
+        for (_projectile, ent, transform, faction, collider) in (&projectiles, &ents, &transforms, &factions, &colliders).join() {
             let rect = Rect {
                 x: transform.position.x,
                 y: transform.position.y,
@@ -93,7 +97,7 @@ impl<'a> System<'a> for CollisionSystem {
                 height: collider.height,
             };
 
-            for (target_transform, target_faction, target_collider) in (&transforms, &factions, &colliders).join() {
+            for (target_ent, target_transform, target_faction, target_collider) in (&ents, &transforms, &factions, &colliders).join() {
                 if faction != target_faction {
                     let target_rect = Rect {
                         x: target_transform.position.x,
@@ -102,7 +106,42 @@ impl<'a> System<'a> for CollisionSystem {
                         height: target_collider.height,
                     };
                     if rect.overlaps(&target_rect) {
-                        println!("Collides!");
+                        let event = CollisionEvent { entity_a: ent, entity_b: target_ent };
+                        collision_events.push(event);
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub struct AttackSystem;
+
+impl<'a> System<'a> for AttackSystem {
+    type SystemData = (
+        Read<'a, Vec<CollisionEvent>>,
+        Entities<'a>,
+        ReadStorage<'a, Attacker>,
+        WriteStorage<'a, Health>,
+    );
+
+    fn run(&mut self, data: Self::SystemData) {
+        let (collision_events, entities, attackers, mut healths) = data;
+
+        for event in collision_events.iter() {
+            let attacker = attackers.get(event.entity_a);
+            let health = healths.get_mut(event.entity_b);
+
+            if let (Some(attacker), Some(health)) = (attacker, health) {
+                health.current_hp = health.current_hp.saturating_sub(attacker.damage);
+
+                if let Err(e) = entities.delete(event.entity_a) {
+                    println!("Entity could not be deleted {}", e);
+                }
+
+                if health.current_hp == 0 {
+                    if let Err(e) = entities.delete(event.entity_b) {
+                        println!("Entity could not be deleted {}", e);
                     }
                 }
             }

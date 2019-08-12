@@ -20,6 +20,10 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             let mut delta = self.world.write_resource::<DeltaTime>();
             let duration = timer::duration_to_f64(timer::delta(ctx));
             *delta = DeltaTime(duration as f32);
+
+            // Clears collision event vector
+            let mut collisions = self.world.write_resource::<Vec<CollisionEvent>>();
+            collisions.clear();
         }
 
         self.dispatcher.dispatch(&mut self.world);
@@ -94,6 +98,7 @@ impl<'a, 'b> State<'a, 'b> {
             .with(ShooterSystem, "shooter_system", &[])
             .with(UpdatePosition, "update_position", &["shooter_system"])
             .with(CollisionSystem, "collision_system", &["update_position"])
+            .with(AttackSystem, "attack_system", &["collision_system"])
             .build();
 
         dispatcher.setup(&mut world);
@@ -116,6 +121,7 @@ impl<'a, 'b> State<'a, 'b> {
             .with(Drawable::Enemy)
             .with(Faction::Enemy)
             .with(Collider::new(40.0, 40.0))
+            .with(Health {current_hp: 3})
             .build();
 
         Self {
@@ -130,7 +136,10 @@ fn main() {
     // State via ggez
     let mut state = State::new();
 
-    let config = conf::Conf::new();
+    let config = conf::Conf {
+        window_setup: conf::WindowSetup::default().title("Isengard Returns!"),
+        .. conf::Conf::default()
+    };
     let (ref mut ctx, ref mut event_loop) = ContextBuilder::new("isengard_returns", "studio_giblets")
         .conf(config)
         .build()
