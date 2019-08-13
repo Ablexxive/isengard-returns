@@ -67,6 +67,16 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
                         graphics::Color::from_rgb(0, 0, 255),
                     )?
                 },
+                Drawable::Spawner => {
+                    graphics::Mesh::new_circle(
+                        ctx,
+                        graphics::DrawMode::fill(),
+                        mint::Point2{x: 0.0, y: 0.0},
+                        8.0,
+                        0.1,
+                        graphics::Color::from_rgb(0, 255, 0),
+                    )?
+                },
             };
 
             graphics::draw(ctx, &mesh, graphics::DrawParam::default().dest(transform.position))?;
@@ -99,6 +109,7 @@ impl<'a, 'b> State<'a, 'b> {
             .with(UpdatePosition, "update_position", &["shooter_system"])
             .with(CollisionSystem, "collision_system", &["update_position"])
             .with(AttackSystem, "attack_system", &["collision_system"])
+            .with(SpawnerSystem, "spawner_system", &["attack_system"])
             .build();
 
         dispatcher.setup(&mut world);
@@ -114,14 +125,11 @@ impl<'a, 'b> State<'a, 'b> {
                 .build();
         }
 
-        // Enemy
+        // Enemy Spawner
         world.create_entity()
+            .with(Spawner::default())
             .with(Transform::new(0.0, 0.0))
-            .with(Velocity::new(20.0, 20.0))
-            .with(Drawable::Enemy)
-            .with(Faction::Enemy)
-            .with(Collider::new(40.0, 40.0))
-            .with(Health {current_hp: 3})
+            .with(Drawable::Spawner)
             .build();
 
         Self {
