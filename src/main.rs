@@ -77,6 +77,14 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
                         graphics::Color::from_rgb(0, 255, 0),
                     )?
                 },
+                Drawable::Base => {
+                    graphics::Mesh::new_rectangle(
+                        ctx,
+                        graphics::DrawMode::stroke(7.0),
+                        graphics::Rect::new_i32(-20, -20, 40, 40),
+                        graphics::Color::from_rgb(255, 0, 0),
+                    )?
+                },
             };
 
             graphics::draw(ctx, &mesh, graphics::DrawParam::default().dest(transform.position))?;
@@ -115,10 +123,10 @@ impl<'a, 'b> State<'a, 'b> {
         dispatcher.setup(&mut world);
 
         // Towers
-        for idx in 1..3 {
+        for idx in 1..2 {
             let idx = idx as f32;
             world.create_entity()
-                .with(Transform::new(idx*100.0, idx*150.0))
+                .with(Transform::new(idx*200.0, 200.0))
                 .with(Drawable::Tower)
                 .with(Faction::Player)
                 .with(Shooter { seconds_per_attack: 1.0, cooldown: 0.0, attack_radius: 100.0 })
@@ -128,8 +136,18 @@ impl<'a, 'b> State<'a, 'b> {
         // Enemy Spawner
         world.create_entity()
             .with(Spawner::default())
-            .with(Transform::new(0.0, 0.0))
+            .with(Transform::new(0.0, 200.0))
             .with(Drawable::Spawner)
+            .build();
+
+        // Base
+        world.create_entity()
+            .with(Base {})
+            .with(Transform::new(400.0, 200.0))
+            .with(Drawable::Base)
+            .with(Faction::Player)
+            .with(Health { current_hp: 2 })
+            .with(Collider::new(40.0, 40.0))
             .build();
 
         Self {

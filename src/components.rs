@@ -29,6 +29,7 @@ pub enum Drawable {
     Enemy,
     Projectile,
     Spawner,
+    Base,
 }
 
 #[derive(Clone, Debug, Component)]
@@ -101,3 +102,6 @@ impl Spawner {
         }
     }
 }
+
+#[derive(Clone, Debug, Component)]
+pub struct Base {}
