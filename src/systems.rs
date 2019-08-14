@@ -116,6 +116,8 @@ impl<'a> System<'a> for CollisionSystem {
         }
 
 
+        // TODO - remove the restriction on projectile/base from iteration and update
+        // attacker system
         // Collision of Enemies to the Base
         // This might be worth refactoring since it's nearly identical to code above
         for (_base, ent, transform, faction, collider) in (&bases, &ents, &transforms, &factions, &colliders).join() {
