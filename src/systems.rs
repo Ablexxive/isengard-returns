@@ -156,10 +156,11 @@ impl<'a> System<'a> for AttackSystem {
         Entities<'a>,
         ReadStorage<'a, Attacker>,
         WriteStorage<'a, Health>,
+        Write<'a, Vec<DeathEvent>>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (collision_events, entities, attackers, mut healths) = data;
+        let (collision_events, entities, attackers, mut healths, mut death_events) = data;
 
         for event in collision_events.iter() {
             let attacker = attackers.get(event.entity_a);
@@ -168,13 +169,22 @@ impl<'a> System<'a> for AttackSystem {
             if let (Some(attacker), Some(health)) = (attacker, health) {
                 health.current_hp = health.current_hp.saturating_sub(attacker.damage);
 
+                // TODO: Don't delete all attackers
                 if let Err(e) = entities.delete(event.entity_a) {
                     println!("Entity could not be deleted {}", e);
+                } else {
+                    death_events.push(DeathEvent {
+                        entity: event.entity_a
+                    });
                 }
 
                 if health.current_hp == 0 {
                     if let Err(e) = entities.delete(event.entity_b) {
                         println!("Entity could not be deleted {}", e);
+                    } else {
+                        death_events.push(DeathEvent {
+                            entity: event.entity_b
+                        });
                     }
                 }
             }
@@ -279,6 +289,30 @@ impl<'a> System<'a> for EnemyAi {
             let speed = velocity.0.magnitude();
             let direction = (waypoint_transform.position - transform.position).normalize();
             velocity.0 = speed * direction;
+        }
+    }
+}
+
+pub struct DeathEvent {
+    entity: Entity,
+}
+
+pub struct DeathSystem;
+
+impl<'a> System<'a> for DeathSystem {
+    type SystemData = (
+        ReadStorage<'a, Base>,
+        Read<'a, Vec<DeathEvent>>,
+        Write<'a, YouLose>,
+    );
+
+    fn run (&mut self, data: Self::SystemData) {
+        let (bases, death_events, mut you_lose) = data;
+
+        for death in death_events.iter() {
+            if let Some(_base) = bases.get(death.entity) {
+                you_lose.0 = true;
+            }
         }
     }
 }

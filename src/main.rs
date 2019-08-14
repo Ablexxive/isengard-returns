@@ -24,18 +24,30 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             // Clears collision event vector
             let mut collisions = self.world.write_resource::<Vec<CollisionEvent>>();
             collisions.clear();
+            let mut death_events = self.world.write_resource::<Vec<DeathEvent>>();
+            death_events.clear();
         }
 
-        self.dispatcher.dispatch(&mut self.world);
-        self.world.maintain();
+        if self.world.read_resource::<YouLose>().0 {
+            //Intentionally left blank.
+        } else {
+
+            self.dispatcher.dispatch(&mut self.world);
+            self.world.maintain();
+        }
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx, graphics::BLACK);
 
-        let system_data: (ReadStorage<Transform>, ReadStorage<Drawable>, ReadStorage<Shooter>) = self.world.system_data();
-        let (transforms, drawables, shooters) = system_data;
+        let system_data: (
+            ReadStorage<Transform>,
+            ReadStorage<Drawable>,
+            ReadStorage<Shooter>,
+            Read<YouLose>
+        ) = self.world.system_data();
+        let (transforms, drawables, shooters, you_lose) = system_data;
 
         for (transform, drawable) in (&transforms, &drawables).join() {
             let mesh = match drawable {
@@ -112,6 +124,15 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             graphics::draw(ctx, &mesh, graphics::DrawParam::default().dest(transform.position))?;
         }
 
+        if you_lose.0 {
+            graphics::draw(
+                ctx,
+                &graphics::Text::new("Hey. I'm sorry to tell you this. You died."),
+                graphics::DrawParam::default()
+                    .dest([10.0, 10.0]),
+            )?;
+        }
+
         graphics::present(ctx)?;
         Ok(())
     }
@@ -129,6 +150,7 @@ impl<'a, 'b> State<'a, 'b> {
             .with(CollisionSystem, "collision_system", &["update_position"])
             .with(AttackSystem, "attack_system", &["collision_system"])
             .with(SpawnerSystem, "spawner_system", &["attack_system"])
+            .with(DeathSystem, "death_system", &["spawner_system"])
             .build();
 
         dispatcher.setup(&mut world);
@@ -165,7 +187,7 @@ impl<'a, 'b> State<'a, 'b> {
             .with(Transform::new(400.0, 200.0))
             .with(Drawable::Base)
             .with(Faction::Player)
-            .with(Health { current_hp: 2 })
+            .with(Health { current_hp: 1 })
             .with(Collider::new(40.0, 40.0))
             .build();
 
