@@ -85,6 +85,16 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
                         graphics::Color::from_rgb(255, 0, 0),
                     )?
                 },
+                Drawable::Waypoint => {
+                    graphics::Mesh::new_circle(
+                        ctx,
+                        graphics::DrawMode::stroke(4.0),
+                        mint::Point2{x: 0.0, y: 0.0},
+                        8.0,
+                        0.1,
+                        graphics::Color::from_rgb(100, 100, 100),
+                    )?
+                },
             };
 
             graphics::draw(ctx, &mesh, graphics::DrawParam::default().dest(transform.position))?;
@@ -113,7 +123,8 @@ impl<'a, 'b> State<'a, 'b> {
         world.register::<Transform>();
         world.register::<Drawable>();
         let mut dispatcher = DispatcherBuilder::new()
-            .with(ShooterSystem, "shooter_system", &[])
+            .with(EnemyAi, "enemy_ai", &[])
+            .with(ShooterSystem, "shooter_system", &["enemy_ai"])
             .with(UpdatePosition, "update_position", &["shooter_system"])
             .with(CollisionSystem, "collision_system", &["update_position"])
             .with(AttackSystem, "attack_system", &["collision_system"])
@@ -133,6 +144,13 @@ impl<'a, 'b> State<'a, 'b> {
                 .build();
         }
 
+        // Waypoints
+        world.create_entity()
+            .with(Waypoint {id: 0})
+            .with(Transform::new(100.0, 300.0))
+            .with(Drawable::Waypoint)
+            .build();
+
         // Enemy Spawner
         world.create_entity()
             .with(Spawner::default())
@@ -143,6 +161,7 @@ impl<'a, 'b> State<'a, 'b> {
         // Base
         world.create_entity()
             .with(Base {})
+            .with(Waypoint {id: 1})
             .with(Transform::new(400.0, 200.0))
             .with(Drawable::Base)
             .with(Faction::Player)
@@ -155,7 +174,6 @@ impl<'a, 'b> State<'a, 'b> {
             dispatcher,
         }
     }
-
 }
 
 fn main() {

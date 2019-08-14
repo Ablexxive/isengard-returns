@@ -191,18 +191,33 @@ impl<'a> System<'a> for SpawnerSystem {
         Read<'a, LazyUpdate>,
         ReadStorage<'a, Transform>,
         WriteStorage<'a, Spawner>,
+        ReadStorage<'a, Waypoint>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (dt, entities, lazy, transforms, mut spawners) = data;
+        let (dt, entities, lazy, transforms, mut spawners, waypoints) = data;
+
 
         for (transform, spawner, spawner_ent) in (&transforms, &mut spawners, &entities).join() {
             if spawner.cooldown > 0.0 {
                 spawner.cooldown -= dt.0;
             } else {
+                // Get initial waypoint entity
+                let waypoint_entity = {
+                    let mut entity = None;
+                    for (ent, waypoint) in (&entities, &waypoints).join() {
+                        if waypoint.id == 0 {
+                            entity = Some(ent);
+                        }
+                    }
+                    entity
+                }.expect("Waypoint 0 does not exist");
+
+
                 spawner.cooldown = spawner.seconds_to_spawn;
                 // Spawn entity
                 let new_ent = entities.create();
+                lazy.insert(new_ent, Enemy { current_waypoint: waypoint_entity});
                 lazy.insert(new_ent, *transform);
                 lazy.insert(new_ent, spawner.spawn_faction);
                 lazy.insert(new_ent, spawner.spawn_drawable);
@@ -218,6 +233,52 @@ impl<'a> System<'a> for SpawnerSystem {
                     }
                 }
             }
+        }
+    }
+}
+
+pub struct EnemyAi;
+
+impl<'a> System<'a> for EnemyAi {
+    type SystemData = (
+        Entities<'a>,
+        ReadStorage<'a, Waypoint>,
+        ReadStorage<'a, Transform>,
+        WriteStorage<'a, Enemy>,
+        WriteStorage<'a, Velocity>,
+        );
+
+    fn run (&mut self, data: Self::SystemData) {
+        let (entities, waypoints, transforms, mut enemies, mut velocities) = data;
+
+        for (enemy, transform, velocity) in (&mut enemies, &transforms, &mut velocities).join() {
+            // Update which waypoint an enemy is heading towards
+            let mut waypoint_transform = transforms.get(enemy.current_waypoint)
+                .expect("Waypoint doesn't have a transform?");
+            let distance = nalgebra::distance(&transform.position, &waypoint_transform.position);
+
+            if distance <= 10.0 {
+                let new_waypoint_id = waypoints.get(enemy.current_waypoint).expect("Enemy doesn't have a waypoint. Boo.")
+                    .id + 1;
+
+                let waypoint_entity = {
+                    let mut entity = None;
+                    for (ent, waypoint) in (&entities, &waypoints).join() {
+                        if waypoint.id == new_waypoint_id {
+                            entity = Some(ent);
+                        }
+                    }
+                    entity
+                }.expect(&format!("Waypoint {} does not exist", new_waypoint_id));
+                waypoint_transform = transforms.get(waypoint_entity)
+                    .expect("Really this shouldn't happen?");
+                enemy.current_waypoint = waypoint_entity;
+            }
+
+            // Now update velocity
+            let speed = velocity.0.magnitude();
+            let direction = (waypoint_transform.position - transform.position).normalize();
+            velocity.0 = speed * direction;
         }
     }
 }

@@ -30,6 +30,7 @@ pub enum Drawable {
     Projectile,
     Spawner,
     Base,
+    Waypoint,
 }
 
 #[derive(Clone, Debug, Component)]
@@ -105,3 +106,13 @@ impl Spawner {
 
 #[derive(Clone, Debug, Component)]
 pub struct Base {}
+
+#[derive(Clone, Debug, Component)]
+pub struct Enemy {
+    pub current_waypoint: Entity,
+}
+
+#[derive(Clone, Debug, Component)]
+pub struct Waypoint {
+    pub id: u8,
+}
