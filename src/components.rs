@@ -1,7 +1,10 @@
-use ggez::nalgebra::{Point2, Vector2};
+use ggez::nalgebra::{
+    Point2,
+    Vector2,
+};
 use specs::{
     prelude::*,
-    Component
+    Component,
 };
 
 #[derive(Default)]
@@ -20,11 +23,12 @@ impl Transform {
     }
 }
 
-#[derive(Clone, Debug, Component)]
+#[derive(Clone, Copy, Debug, Component)]
 pub enum Drawable {
     Tower,
     Enemy,
     Projectile,
+    Spawner,
 }
 
 #[derive(Clone, Debug, Component)]
@@ -75,4 +79,25 @@ pub struct Attacker {
 #[derive(Clone, Debug, Component)]
 pub struct Health {
     pub current_hp: u32,
+}
+
+#[derive(Clone, Debug, Component)]
+pub struct Spawner {
+    pub spawn_faction: Faction,
+    pub spawn_drawable: Drawable,
+    pub count: u32,
+    pub seconds_to_spawn: f32,
+    pub cooldown: f32,
+}
+
+impl Spawner {
+    pub fn default() -> Self {
+        Self {
+            spawn_faction: Faction::Enemy,
+            spawn_drawable: Drawable::Enemy,
+            count: 5,
+            seconds_to_spawn: 3.0,
+            cooldown: 0.0,
+        }
+    }
 }

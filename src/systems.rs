@@ -38,7 +38,7 @@ impl<'a> System<'a> for ShooterSystem {
         let (dt, ent, lazy, transforms, mut shooters, factions) = data;
 
         for (transform, shooter,  faction) in (&transforms, &mut shooters, &factions).join() {
-            if shooter.cooldown > 0.0{
+            if shooter.cooldown > 0.0 {
                 shooter.cooldown -= dt.0;
             } else {
                 for (target_transform, target_fraction) in (&transforms, &factions).join() {
@@ -55,7 +55,7 @@ impl<'a> System<'a> for ShooterSystem {
                             lazy.insert(projectile, *faction);
 
                             let direction = (target_transform.position - transform.position).normalize();
-                            let velocity = direction * 100.0;
+                            let velocity = direction * 300.0;
                             lazy.insert(projectile, Velocity(velocity));
 
                             lazy.insert(projectile, Collider::new(8.0, 8.0));
@@ -141,6 +141,45 @@ impl<'a> System<'a> for AttackSystem {
 
                 if health.current_hp == 0 {
                     if let Err(e) = entities.delete(event.entity_b) {
+                        println!("Entity could not be deleted {}", e);
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub struct SpawnerSystem;
+
+impl<'a> System<'a> for SpawnerSystem {
+    type SystemData = (
+        Read<'a, DeltaTime>,
+        Entities<'a>,
+        Read<'a, LazyUpdate>,
+        ReadStorage<'a, Transform>,
+        WriteStorage<'a, Spawner>,
+    );
+
+    fn run(&mut self, data: Self::SystemData) {
+        let (dt, entities, lazy, transforms, mut spawners) = data;
+
+        for (transform, spawner, spawner_ent) in (&transforms, &mut spawners, &entities).join() {
+            if spawner.cooldown > 0.0 {
+                spawner.cooldown -= dt.0;
+            } else {
+                spawner.cooldown = spawner.seconds_to_spawn;
+                // Spawn entity
+                let new_ent = entities.create();
+                lazy.insert(new_ent, *transform);
+                lazy.insert(new_ent, spawner.spawn_faction);
+                lazy.insert(new_ent, spawner.spawn_drawable);
+                lazy.insert(new_ent, Velocity::new(60.0, 60.0));
+                lazy.insert(new_ent, Collider::new(40.0, 40.0));
+                lazy.insert(new_ent, Health {current_hp: 5});
+
+                spawner.count -= 1;
+                if spawner.count == 0 {
+                    if let Err(e) = entities.delete(spawner_ent) {
                         println!("Entity could not be deleted {}", e);
                     }
                 }
