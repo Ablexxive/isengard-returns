@@ -83,12 +83,14 @@ impl<'a> System<'a> for CollisionSystem {
         ReadStorage<'a, Transform>,
         ReadStorage<'a, Faction>,
         ReadStorage<'a, Collider>,
+        ReadStorage<'a, Base>,
         Write<'a, Vec<CollisionEvent>>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (ents, projectiles, transforms, factions, colliders, mut collision_events) = data;
+        let (ents, projectiles, transforms, factions, colliders, bases, mut collision_events) = data;
 
+        // Collision of Projectiles to Enemies
         for (_projectile, ent, transform, faction, collider) in (&projectiles, &ents, &transforms, &factions, &colliders).join() {
             let rect = Rect {
                 x: transform.position.x,
@@ -107,6 +109,37 @@ impl<'a> System<'a> for CollisionSystem {
                     };
                     if rect.overlaps(&target_rect) {
                         let event = CollisionEvent { entity_a: ent, entity_b: target_ent };
+                        collision_events.push(event);
+                    }
+                }
+            }
+        }
+
+
+        // TODO - remove the restriction on projectile/base from iteration and update
+        // attacker system
+        // Collision of Enemies to the Base
+        // This might be worth refactoring since it's nearly identical to code above
+        for (_base, ent, transform, faction, collider) in (&bases, &ents, &transforms, &factions, &colliders).join() {
+            let rect = Rect {
+                x: transform.position.x,
+                y: transform.position.y,
+                width: collider.width,
+                height: collider.height,
+            };
+
+            for (target_ent, target_transform, target_faction, target_collider) in (&ents, &transforms, &factions, &colliders).join() {
+                if faction != target_faction {
+                    let target_rect = Rect {
+                        x: target_transform.position.x,
+                        y: target_transform.position.y,
+                        width: target_collider.width,
+                        height: target_collider.height,
+                    };
+                    if rect.overlaps(&target_rect) {
+                        // The Collision System assumes entity_a is attacking entity_b, so make
+                        // sure enemy is entity_a and base is entity_b
+                        let event = CollisionEvent { entity_a: target_ent, entity_b: ent };
                         collision_events.push(event);
                     }
                 }
@@ -173,9 +206,10 @@ impl<'a> System<'a> for SpawnerSystem {
                 lazy.insert(new_ent, *transform);
                 lazy.insert(new_ent, spawner.spawn_faction);
                 lazy.insert(new_ent, spawner.spawn_drawable);
-                lazy.insert(new_ent, Velocity::new(60.0, 60.0));
+                lazy.insert(new_ent, Velocity::new(60.0, 0.0));
                 lazy.insert(new_ent, Collider::new(40.0, 40.0));
                 lazy.insert(new_ent, Health {current_hp: 5});
+                lazy.insert(new_ent, Attacker {damage:1});
 
                 spawner.count -= 1;
                 if spawner.count == 0 {
