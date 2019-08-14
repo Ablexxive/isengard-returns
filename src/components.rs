@@ -23,7 +23,7 @@ impl Transform {
     }
 }
 
-#[derive(Clone, Debug, Component)]
+#[derive(Clone, Copy, Debug, Component)]
 pub enum Drawable {
     Tower,
     Enemy,

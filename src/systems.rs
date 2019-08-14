@@ -171,13 +171,11 @@ impl<'a> System<'a> for SpawnerSystem {
                 // Spawn entity
                 let new_ent = entities.create();
                 lazy.insert(new_ent, *transform);
+                lazy.insert(new_ent, spawner.spawn_faction);
+                lazy.insert(new_ent, spawner.spawn_drawable);
                 lazy.insert(new_ent, Velocity::new(60.0, 60.0));
-                lazy.insert(new_ent, Drawable::Enemy);
                 lazy.insert(new_ent, Collider::new(40.0, 40.0));
                 lazy.insert(new_ent, Health {current_hp: 5});
-                lazy.insert(new_ent, spawner.spawn_faction);
-                //TODO - why does this give an issue?
-                //lazy.insert(new_ent, spawner.spawn_drawable);
 
                 spawner.count -= 1;
                 if spawner.count == 0 {
