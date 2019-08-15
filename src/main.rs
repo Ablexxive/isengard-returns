@@ -2,10 +2,12 @@ use ggez::*;
 use specs::prelude::*;
 
 use components::*;
+use resources::*;
 use systems::*;
 
 mod components;
 mod rect;
+mod resources;
 mod systems;
 
 struct State<'a, 'b> {
@@ -45,7 +47,7 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             ReadStorage<Transform>,
             ReadStorage<Drawable>,
             ReadStorage<Shooter>,
-            Read<YouLose>
+            Read<YouLose>,
         ) = self.world.system_data();
         let (transforms, drawables, shooters, you_lose) = system_data;
 

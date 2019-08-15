@@ -3,6 +3,7 @@ use specs::prelude::*;
 
 use crate::components::*;
 use crate::rect::*;
+use crate::resources::*;
 
 pub struct UpdatePosition;
 
@@ -67,11 +68,6 @@ impl<'a> System<'a> for ShooterSystem {
             }
         }
     }
-}
-
-pub struct CollisionEvent {
-    entity_a: Entity,
-    entity_b: Entity,
 }
 
 pub struct CollisionSystem;
@@ -291,10 +287,6 @@ impl<'a> System<'a> for EnemyAi {
             velocity.0 = speed * direction;
         }
     }
-}
-
-pub struct DeathEvent {
-    entity: Entity,
 }
 
 pub struct DeathSystem;
