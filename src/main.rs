@@ -26,6 +26,8 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
                 let mut grid = self.world.write_resource::<Grid>();
                 let (cell_x, cell_y) = ((x / grid.cell_size) as u32, (y / grid.cell_size) as u32);
                 if grid.is_buildable(cell_x, cell_y) {
+                    // FIXME: We might wanna defer this to after the tower actually exists. In case
+                    // something goes wrong in creating it.
                     grid.set_cell(cell_x, cell_y, GridCell::Occupied);
                     // Return the center of the cell in world coordinates.
                     Some(((cell_x as f32 * grid.cell_size) + grid.cell_size / 2.0,
