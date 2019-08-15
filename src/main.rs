@@ -180,6 +180,19 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             graphics::draw(ctx, &mesh, graphics::DrawParam::default().dest(transform.position))?;
         }
 
+        // Highlight the grid cell the mouse is hovering over.
+        let mouse_pos = input::mouse::position(ctx);
+        let (cell_x, cell_y) = ((mouse_pos.x / grid.cell_size) as u32, (mouse_pos.y / grid.cell_size) as u32);
+        if let Some(_) = grid.get_cell(cell_x, cell_y) {
+            let mesh = graphics::Mesh::new_rectangle(
+                ctx,
+                graphics::DrawMode::fill(),
+                graphics::Rect::new(cell_x as f32 * grid.cell_size, cell_y as f32 * grid.cell_size, grid.cell_size, grid.cell_size),
+                graphics::Color::from_rgba(127, 127, 127, 127),
+            )?;
+            graphics::draw(ctx, &mesh, graphics::DrawParam::default())?;
+        }
+
         if you_lose.0 {
             graphics::draw(
                 ctx,
