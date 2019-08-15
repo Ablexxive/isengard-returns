@@ -253,7 +253,7 @@ impl<'a, 'b> State<'a, 'b> {
     }
 }
 
-fn main() {
+fn main() -> GameResult {
     // State via ggez
     let mut state = State::new();
 
@@ -264,7 +264,6 @@ fn main() {
     };
     let (ref mut ctx, ref mut event_loop) = ContextBuilder::new("isengard_returns", "studio_giblets")
         .conf(config)
-        .build()
-        .unwrap();
-    event::run(ctx, event_loop, &mut state).unwrap();
+        .build()?;
+    event::run(ctx, event_loop, &mut state)
 }
