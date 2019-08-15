@@ -145,6 +145,8 @@ impl<'a, 'b> State<'a, 'b> {
         let mut world = World::new();
         world.register::<Transform>();
         world.register::<Drawable>();
+        // Currently the Projectile resource isn't accessed by any systems so it needs to be registered here.
+        world.register::<Projectile>();
         let mut dispatcher = DispatcherBuilder::new()
             .with(EnemyAi, "enemy_ai", &[])
             .with(ShooterSystem, "shooter_system", &["enemy_ai"])
