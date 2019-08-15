@@ -5,7 +5,7 @@ pub enum GridCell {
     Occupied,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Grid {
     pub width: u32,
     pub height: u32,

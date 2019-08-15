@@ -21,7 +21,7 @@ struct State<'a, 'b> {
 impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
         if button == MouseButton::Left {
-            // TODO: Check which grid cell we've clicked. If nothing is there, build a tower.
+            // Check which grid cell we've clicked. If nothing is there, build a tower.
             let world_pos = {
                 let mut grid = self.world.write_resource::<Grid>();
                 let (cell_x, cell_y) = ((x / grid.cell_size) as u32, (y / grid.cell_size) as u32);
@@ -81,9 +81,27 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             ReadStorage<Transform>,
             ReadStorage<Drawable>,
             ReadStorage<Shooter>,
+            Read<Grid>,
             Read<YouLose>,
         ) = self.world.system_data();
-        let (transforms, drawables, shooters, you_lose) = system_data;
+        let (transforms, drawables, shooters, grid, you_lose) = system_data;
+
+        // Draw the grid first.
+        let grid_mesh = {
+            let mut mb = graphics::MeshBuilder::new();
+            for j in 0..grid.height {
+                for i in 0..grid.width {
+                    let (x, y) = (i as f32 * grid.cell_size, j as f32 * grid.cell_size);
+                    mb.rectangle(
+                        graphics::DrawMode::stroke(2.0),
+                        graphics::Rect::new(x, y, grid.cell_size, grid.cell_size),
+                        graphics::Color::from_rgb(60, 60, 60),
+                    );
+                }
+            }
+            mb.build(ctx)?
+        };
+        graphics::draw(ctx, &grid_mesh, graphics::DrawParam::default())?;
 
         for (transform, drawable) in (&transforms, &drawables).join() {
             let mesh = match drawable {
