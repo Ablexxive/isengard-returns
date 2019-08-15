@@ -88,7 +88,7 @@ impl<'a> System<'a> for CollisionSystem {
     fn run(&mut self, data: Self::SystemData) {
         let (ents, transforms, factions, colliders, mut collision_events) = data;
 
-        // Collision of Projectiles to Enemies
+        // Each collisions will generate two events, going from enity A -> B and B -> A
         for (ent, transform, faction, collider) in (&ents, &transforms, &factions, &colliders).join() {
             let rect = Rect {
                 x: transform.position.x,
