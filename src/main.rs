@@ -20,7 +20,7 @@ struct State<'a, 'b> {
 
 impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
-        if button == MouseButton::Left {
+        if button == MouseButton::Left && !self.world.read_resource::<YouLose>().0 {
             // Check which grid cell we've clicked. If nothing is there, build a tower.
             let world_pos = {
                 let mut grid = self.world.write_resource::<Grid>();
