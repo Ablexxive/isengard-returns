@@ -7,12 +7,6 @@ use specs::{
     Component,
 };
 
-#[derive(Default)]
-pub struct DeltaTime(pub f32);
-
-#[derive(Default)]
-pub struct YouLose(pub bool);
-
 #[derive(Clone, Copy, Debug, Component)]
 pub struct Transform {
     pub position: Point2<f32>,
