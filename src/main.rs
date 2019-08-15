@@ -1,11 +1,14 @@
 use ggez::*;
+use ggez::input::mouse::MouseButton;
 use specs::prelude::*;
 
 use components::*;
+use grid::*;
 use resources::*;
 use systems::*;
 
 mod components;
+mod grid;
 mod rect;
 mod resources;
 mod systems;
@@ -16,7 +19,41 @@ struct State<'a, 'b> {
 }
 
 impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
+    fn mouse_button_down_event(&mut self, _ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
+        if button == MouseButton::Left {
+            // Check which grid cell we've clicked. If nothing is there, build a tower.
+            let world_pos = {
+                let mut grid = self.world.write_resource::<Grid>();
+                let (cell_x, cell_y) = ((x / grid.cell_size) as u32, (y / grid.cell_size) as u32);
+                if grid.is_buildable(cell_x, cell_y) {
+                    // FIXME: We might wanna defer this to after the tower actually exists. In case
+                    // something goes wrong in creating it.
+                    grid.set_cell(cell_x, cell_y, GridCell::Occupied);
+                    // Return the center of the cell in world coordinates.
+                    Some(((cell_x as f32 * grid.cell_size) + grid.cell_size / 2.0,
+                          (cell_y as f32 * grid.cell_size) + grid.cell_size / 2.0))
+                } else {
+                    None
+                }
+            };
+
+            // Try to build a tower at the location clicked.
+            if let Some((world_x, world_y)) = world_pos {
+                self.world.create_entity()
+                    .with(Transform::new(world_x, world_y))
+                    .with(Drawable::Tower)
+                    .with(Faction::Player)
+                    .with(Shooter { seconds_per_attack: 1.0, cooldown: 0.0, attack_radius: 100.0 })
+                    .build();
+                println!("Built tower at {:?}!", (world_x, world_y));
+            };
+        }
+    }
+
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
+        // Call maintain to update all entities created via input events.
+        self.world.maintain();
+
         {
             // Sets the time and updates it
             let mut delta = self.world.write_resource::<DeltaTime>();
@@ -33,7 +70,6 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
         if self.world.read_resource::<YouLose>().0 {
             //Intentionally left blank.
         } else {
-
             self.dispatcher.dispatch(&mut self.world);
             self.world.maintain();
         }
@@ -47,9 +83,27 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             ReadStorage<Transform>,
             ReadStorage<Drawable>,
             ReadStorage<Shooter>,
+            Read<Grid>,
             Read<YouLose>,
         ) = self.world.system_data();
-        let (transforms, drawables, shooters, you_lose) = system_data;
+        let (transforms, drawables, shooters, grid, you_lose) = system_data;
+
+        // Draw the grid first.
+        let grid_mesh = {
+            let mut mb = graphics::MeshBuilder::new();
+            for j in 0..grid.height {
+                for i in 0..grid.width {
+                    let (x, y) = (i as f32 * grid.cell_size, j as f32 * grid.cell_size);
+                    mb.rectangle(
+                        graphics::DrawMode::stroke(2.0),
+                        graphics::Rect::new(x, y, grid.cell_size, grid.cell_size),
+                        graphics::Color::from_rgb(60, 60, 60),
+                    );
+                }
+            }
+            mb.build(ctx)?
+        };
+        graphics::draw(ctx, &grid_mesh, graphics::DrawParam::default())?;
 
         for (transform, drawable) in (&transforms, &drawables).join() {
             let mesh = match drawable {
@@ -142,11 +196,17 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
 
 impl<'a, 'b> State<'a, 'b> {
     fn new() -> Self {
+        let grid = Grid::new(20, 20, 40.0);
+
         let mut world = World::new();
         world.register::<Transform>();
         world.register::<Drawable>();
         // Currently the Projectile resource isn't accessed by any systems so it needs to be registered here.
         world.register::<Projectile>();
+
+        // Insert initial resources.
+        world.insert(grid);
+
         let mut dispatcher = DispatcherBuilder::new()
             .with(EnemyAi, "enemy_ai", &[])
             .with(ShooterSystem, "shooter_system", &["enemy_ai"])
@@ -159,16 +219,7 @@ impl<'a, 'b> State<'a, 'b> {
 
         dispatcher.setup(&mut world);
 
-        // Towers
-        for idx in 1..2 {
-            let idx = idx as f32;
-            world.create_entity()
-                .with(Transform::new(idx*200.0, 200.0))
-                .with(Drawable::Tower)
-                .with(Faction::Player)
-                .with(Shooter { seconds_per_attack: 1.0, cooldown: 0.0, attack_radius: 100.0 })
-                .build();
-        }
+        // Generate a level in code (for now). We'll do this via data files soon.
 
         // Waypoints
         world.create_entity()
@@ -207,7 +258,8 @@ fn main() {
     let mut state = State::new();
 
     let config = conf::Conf {
-        window_setup: conf::WindowSetup::default().title("Isengard Returns!"),
+        window_setup: conf::WindowSetup::default()
+            .title("Isengard Returns!"),
         .. conf::Conf::default()
     };
     let (ref mut ctx, ref mut event_loop) = ContextBuilder::new("isengard_returns", "studio_giblets")
