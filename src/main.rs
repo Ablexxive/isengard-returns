@@ -20,7 +20,7 @@ struct State<'a, 'b> {
 
 impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
-        if button == MouseButton::Left && !self.world.read_resource::<YouLose>().0 {
+        if button == MouseButton::Left && *self.world.read_resource::<PlayState>() == PlayState::Play {
             // Check which grid cell we've clicked. If nothing is there, build a tower.
             let world_pos = {
                 let mut grid = self.world.write_resource::<Grid>();
@@ -67,9 +67,7 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             death_events.clear();
         }
 
-        if self.world.read_resource::<YouLose>().0 {
-            //Intentionally left blank.
-        } else {
+        if *self.world.read_resource::<PlayState>() == PlayState::Play {
             self.dispatcher.dispatch(&mut self.world);
             self.world.maintain();
         }
@@ -84,9 +82,9 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             ReadStorage<Drawable>,
             ReadStorage<Shooter>,
             Read<Grid>,
-            Read<YouLose>,
+            Read<PlayState>,
         ) = self.world.system_data();
-        let (transforms, drawables, shooters, grid, you_lose) = system_data;
+        let (transforms, drawables, shooters, grid, play_state) = system_data;
 
         // Draw the grid first.
         let grid_mesh = {
@@ -193,13 +191,24 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             graphics::draw(ctx, &mesh, graphics::DrawParam::default())?;
         }
 
-        if you_lose.0 {
-            graphics::draw(
-                ctx,
-                &graphics::Text::new("Hey. I'm sorry to tell you this. You died."),
-                graphics::DrawParam::default()
-                    .dest([10.0, 10.0]),
-            )?;
+        match *play_state {
+            PlayState::Win => {
+                graphics::draw(
+                    ctx,
+                    &graphics::Text::new("VICTORY ACHIEVED!"),
+                    graphics::DrawParam::default()
+                        .dest([10.0, 10.0]),
+                )?;
+            }
+            PlayState::Lose => {
+                graphics::draw(
+                    ctx,
+                    &graphics::Text::new("Hey. I'm sorry to tell you this. You died."),
+                    graphics::DrawParam::default()
+                        .dest([10.0, 10.0]),
+                )?;
+            }
+            _ => {}
         }
 
         graphics::present(ctx)?;
@@ -228,6 +237,7 @@ impl<'a, 'b> State<'a, 'b> {
             .with(AttackSystem, "attack_system", &["collision_system"])
             .with(SpawnerSystem, "spawner_system", &["attack_system"])
             .with(DeathSystem, "death_system", &["spawner_system"])
+            .with(WinSystem, "win_system", &["death_system"])
             .build();
 
         dispatcher.setup(&mut world);
