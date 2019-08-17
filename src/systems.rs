@@ -262,16 +262,36 @@ impl<'a> System<'a> for DeathSystem {
     type SystemData = (
         ReadStorage<'a, Base>,
         Read<'a, Vec<DeathEvent>>,
-        Write<'a, YouLose>,
+        Write<'a, PlayState>,
     );
 
     fn run (&mut self, data: Self::SystemData) {
-        let (bases, death_events, mut you_lose) = data;
+        let (bases, death_events, mut play_state) = data;
 
         for death in death_events.iter() {
             if let Some(_base) = bases.get(death.entity) {
-                you_lose.0 = true;
+                *play_state = PlayState::Lose;
             }
+        }
+    }
+}
+
+pub struct WinSystem;
+
+impl<'a> System<'a> for WinSystem {
+    type SystemData = (
+        ReadStorage<'a, Base>,
+        ReadStorage<'a, Enemy>,
+        ReadStorage<'a, Spawner>,
+        Write<'a, PlayState>,
+    );
+
+    fn run (&mut self, data: Self::SystemData) {
+        let (bases, enemies, spawners, mut play_state) = data;
+
+        // Player wins When all enemies and spawners are gone and there are still bases alive.
+        if !bases.is_empty() && enemies.is_empty() && spawners.is_empty() {
+            *play_state = PlayState::Win;
         }
     }
 }
