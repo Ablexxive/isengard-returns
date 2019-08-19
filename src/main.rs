@@ -1,6 +1,7 @@
 use ggez::*;
 use ggez::input::mouse::MouseButton;
 use specs::prelude::*;
+use tiled::PropertyValue;
 
 use components::*;
 use grid::*;
@@ -181,12 +182,17 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
         // Highlight the grid cell the mouse is hovering over.
         let mouse_pos = input::mouse::position(ctx);
         let (cell_x, cell_y) = ((mouse_pos.x / grid.cell_size) as u32, (mouse_pos.y / grid.cell_size) as u32);
-        if let Some(_) = grid.get_cell(cell_x, cell_y) {
+        if let Some(cell) = grid.get_cell(cell_x, cell_y) {
+            let color = if cell == GridCell::Buildable {
+                graphics::Color::from_rgba(0, 0, 127, 127)
+            } else {
+                graphics::Color::from_rgba(127, 0, 0, 127)
+            };
             let mesh = graphics::Mesh::new_rectangle(
                 ctx,
                 graphics::DrawMode::fill(),
                 graphics::Rect::new(cell_x as f32 * grid.cell_size, cell_y as f32 * grid.cell_size, grid.cell_size, grid.cell_size),
-                graphics::Color::from_rgba(127, 127, 127, 127),
+                color,
             )?;
             graphics::draw(ctx, &mesh, graphics::DrawParam::default())?;
         }
@@ -217,17 +223,13 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
 }
 
 impl<'a, 'b> State<'a, 'b> {
-    fn new() -> Self {
-        let grid = Grid::new(20, 20, 40.0);
-
+    fn new(_ctx: &mut Context) -> GameResult<Self> {
+        // Set up the specs world.
         let mut world = World::new();
         world.register::<Transform>();
         world.register::<Drawable>();
         // Currently the Projectile resource isn't accessed by any systems so it needs to be registered here.
         world.register::<Projectile>();
-
-        // Insert initial resources.
-        world.insert(grid);
 
         let mut dispatcher = DispatcherBuilder::new()
             .with(EnemyAi, "enemy_ai", &[])
@@ -242,51 +244,98 @@ impl<'a, 'b> State<'a, 'b> {
 
         dispatcher.setup(&mut world);
 
-        // Generate a level in code (for now). We'll do this via data files soon.
+        // Load the grid and entities from Tiled map file.
+        // TODO: Use ggez's filesystem::open instead of File::open to support wasm.
+        let map = tiled::parse_file("assets/levels/test.tmx")
+            .expect("Could not parse level");
 
-        // Waypoints
-        world.create_entity()
-            .with(Waypoint {id: 0})
-            .with(Transform::new(100.0, 300.0))
-            .with(Drawable::Waypoint)
-            .build();
+        // Initialize Grid from Grid layer.
+        let mut grid = Grid::new(map.width, map.height, map.tile_width as f32);
+        // TODO: Don't hard-code the layer. Check the name at least.
+        for (j, row) in map.layers[0].tiles.iter().enumerate() {
+            for (i, tile) in row.iter().enumerate() {
+                match tile {
+                    1 => { grid.set_cell(i as u32, j as u32, GridCell::Buildable); }
+                    2 => { grid.set_cell(i as u32, j as u32, GridCell::Walkable); }
+                    _ => {}
+                }
+            }
+        }
 
-        // Enemy Spawner
-        world.create_entity()
-            .with(Spawner::default())
-            .with(Transform::new(0.0, 200.0))
-            .with(Drawable::Spawner)
-            .build();
+        // Iterate over objects. Create Waypoints, Spawners, and Bases.
+        for object in &map.object_groups[0].objects {
+            let obj_type = if let (true, Some(tileset)) = (object.obj_type.is_empty(), map.get_tileset_by_gid(object.gid)) {
+                // Get default value from tileset.
+                let tile_id = object.gid - tileset.first_gid;
+                let tile = &tileset.tiles[tile_id as usize];
+                if let Some(tile_type) = &tile.tile_type {
+                    tile_type.as_ref()
+                } else {
+                    ""
+                }
+            } else {
+                object.obj_type.as_ref()
+            };
+            let (x, y) = (object.x + object.width as f32 / 2.0,
+                          object.y + object.height as f32 / 2.0);
+            let (cell_x, cell_y) = ((x / grid.cell_size) as u32, (y / grid.cell_size) as u32);
+            match obj_type {
+                "base" => {
+                    if let Some(PropertyValue::IntValue(waypoint_id)) = object.properties.get("waypoint_id") {
+                        world.create_entity()
+                            .with(Base {})
+                            .with(Waypoint {id: *waypoint_id as u8})
+                            .with(Transform::new(x, y))
+                            .with(Drawable::Base)
+                            .with(Faction::Player)
+                            .with(Health { current_hp: 1 })
+                            .with(Collider::new(40.0, 40.0))
+                            .build();
+                        grid.set_cell(cell_x, cell_y, GridCell::Occupied);
+                    } else {
+                        panic!("Could not find waypoint_id property for base");
+                    }
+                }
+                "spawner" => {
+                    world.create_entity()
+                        .with(Spawner::default())
+                        .with(Transform::new(x, y))
+                        .with(Drawable::Spawner)
+                        .build();
+                    grid.set_cell(cell_x, cell_y, GridCell::Occupied);
+                }
+                "waypoint" => {
+                    if let Some(PropertyValue::IntValue(waypoint_id)) = object.properties.get("waypoint_id") {
+                        world.create_entity()
+                            .with(Waypoint {id: *waypoint_id as u8})
+                            .with(Transform::new(x, y))
+                            .with(Drawable::Waypoint)
+                            .build();
+                        grid.set_cell(cell_x, cell_y, GridCell::Occupied);
+                    } else {
+                        panic!("Could not find waypoint_id property for base");
+                    }
+                }
+                // Warn since this is an unknown object type.
+                obj_type => println!("Warning: Ignoring object of unknown type \"{}\"", obj_type),
+            }
+        }
 
-        // Base
-        world.create_entity()
-            .with(Base {})
-            .with(Waypoint {id: 1})
-            .with(Transform::new(400.0, 200.0))
-            .with(Drawable::Base)
-            .with(Faction::Player)
-            .with(Health { current_hp: 1 })
-            .with(Collider::new(40.0, 40.0))
-            .build();
+        // Insert initial resources.
+        world.insert(grid);
 
-        Self {
+        Ok(Self {
             world,
             dispatcher,
-        }
+        })
     }
 }
 
 fn main() -> GameResult {
-    // State via ggez
-    let mut state = State::new();
-
-    let config = conf::Conf {
-        window_setup: conf::WindowSetup::default()
-            .title("Isengard Returns!"),
-        .. conf::Conf::default()
-    };
-    let (ref mut ctx, ref mut event_loop) = ContextBuilder::new("isengard_returns", "studio_giblets")
-        .conf(config)
+    let (mut ctx, mut event_loop) = ContextBuilder::new("isengard_returns", "studio_giblets")
+        .add_resource_path("./assets")
+        .window_setup(conf::WindowSetup::default().title("Isengard Returns!"))
         .build()?;
-    event::run(ctx, event_loop, &mut state)
+    let mut state = State::new(&mut ctx)?;
+    event::run(&mut ctx, &mut event_loop, &mut state)
 }
