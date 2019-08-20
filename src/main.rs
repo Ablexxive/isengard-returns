@@ -1,7 +1,9 @@
 use ggez::*;
-use ggez::input::mouse::MouseButton;
+use ggez::input::{
+    keyboard::{KeyCode, KeyMods},
+    mouse::MouseButton,
+};
 use specs::prelude::*;
-use tiled::PropertyValue;
 
 use components::*;
 use grid::*;
@@ -10,6 +12,7 @@ use systems::*;
 
 mod components;
 mod grid;
+mod level;
 mod rect;
 mod resources;
 mod systems;
@@ -17,6 +20,7 @@ mod systems;
 struct State<'a, 'b> {
     world: World,
     dispatcher: Dispatcher<'a, 'b>,
+    reload_level: bool,
 }
 
 impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
@@ -51,27 +55,44 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
         }
     }
 
+    fn key_down_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods, _repeat: bool) {
+        if keycode == KeyCode::Escape {
+            event::quit(ctx);
+        }
+
+        if keycode == KeyCode::R {
+            self.reload_level = true;
+        }
+    }
+
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
         // Call maintain to update all entities created via input events.
         self.world.maintain();
 
-        {
-            // Sets the time and updates it
-            let mut delta = self.world.write_resource::<DeltaTime>();
-            let duration = timer::duration_to_f64(timer::delta(ctx));
-            *delta = DeltaTime(duration as f32);
+        if self.reload_level {
+            level::load_level(&mut self.world);
+            self.reload_level = false;
+        } else {
+            {
+                // Sets the time and updates it
+                let duration = timer::duration_to_f64(timer::delta(ctx));
+                self.world.insert(DeltaTime(duration as f32));
 
-            // Clears collision event vector
-            let mut collisions = self.world.write_resource::<Vec<CollisionEvent>>();
-            collisions.clear();
-            let mut death_events = self.world.write_resource::<Vec<DeathEvent>>();
-            death_events.clear();
+                // Clears collision event vector
+                let mut collisions = self.world.write_resource::<Vec<CollisionEvent>>();
+                collisions.clear();
+                let mut death_events = self.world.write_resource::<Vec<DeathEvent>>();
+                death_events.clear();
+            }
+
+            if *self.world.read_resource::<PlayState>() == PlayState::Play {
+                self.dispatcher.dispatch(&mut self.world);
+
+                // Update all entities created/deleted in systems.
+                self.world.maintain();
+            }
         }
 
-        if *self.world.read_resource::<PlayState>() == PlayState::Play {
-            self.dispatcher.dispatch(&mut self.world);
-            self.world.maintain();
-        }
         Ok(())
     }
 
@@ -244,89 +265,13 @@ impl<'a, 'b> State<'a, 'b> {
 
         dispatcher.setup(&mut world);
 
-        // Load the grid and entities from Tiled map file.
-        // TODO: Use ggez's filesystem::open instead of File::open to support wasm.
-        let map = tiled::parse_file("assets/levels/test.tmx")
-            .expect("Could not parse level");
-
-        // Initialize Grid from Grid layer.
-        let mut grid = Grid::new(map.width, map.height, map.tile_width as f32);
-        // TODO: Don't hard-code the layer. Check the name at least.
-        for (j, row) in map.layers[0].tiles.iter().enumerate() {
-            for (i, tile) in row.iter().enumerate() {
-                match tile {
-                    1 => { grid.set_cell(i as u32, j as u32, GridCell::Buildable); }
-                    2 => { grid.set_cell(i as u32, j as u32, GridCell::Walkable); }
-                    _ => {}
-                }
-            }
-        }
-
-        // Iterate over objects. Create Waypoints, Spawners, and Bases.
-        for object in &map.object_groups[0].objects {
-            let obj_type = if let (true, Some(tileset)) = (object.obj_type.is_empty(), map.get_tileset_by_gid(object.gid)) {
-                // Get default value from tileset.
-                let tile_id = object.gid - tileset.first_gid;
-                let tile = &tileset.tiles[tile_id as usize];
-                if let Some(tile_type) = &tile.tile_type {
-                    tile_type.as_ref()
-                } else {
-                    ""
-                }
-            } else {
-                object.obj_type.as_ref()
-            };
-            let (x, y) = (object.x + object.width as f32 / 2.0,
-                          object.y + object.height as f32 / 2.0);
-            let (cell_x, cell_y) = ((x / grid.cell_size) as u32, (y / grid.cell_size) as u32);
-            match obj_type {
-                "base" => {
-                    if let Some(PropertyValue::IntValue(waypoint_id)) = object.properties.get("waypoint_id") {
-                        world.create_entity()
-                            .with(Base {})
-                            .with(Waypoint {id: *waypoint_id as u8})
-                            .with(Transform::new(x, y))
-                            .with(Drawable::Base)
-                            .with(Faction::Player)
-                            .with(Health { current_hp: 1 })
-                            .with(Collider::new(40.0, 40.0))
-                            .build();
-                        grid.set_cell(cell_x, cell_y, GridCell::Occupied);
-                    } else {
-                        panic!("Could not find waypoint_id property for base");
-                    }
-                }
-                "spawner" => {
-                    world.create_entity()
-                        .with(Spawner::default())
-                        .with(Transform::new(x, y))
-                        .with(Drawable::Spawner)
-                        .build();
-                    grid.set_cell(cell_x, cell_y, GridCell::Occupied);
-                }
-                "waypoint" => {
-                    if let Some(PropertyValue::IntValue(waypoint_id)) = object.properties.get("waypoint_id") {
-                        world.create_entity()
-                            .with(Waypoint {id: *waypoint_id as u8})
-                            .with(Transform::new(x, y))
-                            .with(Drawable::Waypoint)
-                            .build();
-                        grid.set_cell(cell_x, cell_y, GridCell::Occupied);
-                    } else {
-                        panic!("Could not find waypoint_id property for base");
-                    }
-                }
-                // Warn since this is an unknown object type.
-                obj_type => println!("Warning: Ignoring object of unknown type \"{}\"", obj_type),
-            }
-        }
-
-        // Insert initial resources.
-        world.insert(grid);
+        // Load the level!
+        level::load_level(&mut world);
 
         Ok(Self {
             world,
             dispatcher,
+            reload_level: false,
         })
     }
 }
