@@ -129,6 +129,8 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
         };
         graphics::draw(ctx, &grid_mesh, graphics::DrawParam::default())?;
 
+        // TODO: Sort our drawables so enemies are rendered on top of buildings!
+
         for (transform, drawable) in (&transforms, &drawables).join() {
             let mesh = match drawable {
                 Drawable::Tower => {
