@@ -55,7 +55,11 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
         }
     }
 
-    fn key_down_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods, _repeat: bool) {
+    fn key_down_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods, repeat: bool) {
+        if repeat {
+            return;
+        }
+
         if keycode == KeyCode::Escape {
             event::quit(ctx);
         }
