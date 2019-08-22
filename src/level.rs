@@ -29,7 +29,7 @@ pub fn load_level(world: &mut World) {
     // Iterate over objects. Create Waypoints, Spawners, and Bases.
     for object in &map.object_groups[0].objects {
         let obj_type = if let (true, Some(tileset)) = (object.obj_type.is_empty(), map.get_tileset_by_gid(object.gid)) {
-            // Get default value from tileset.
+            // This tile object didn't set a type, so get the default object type from its tileset.
             let tile_id = object.gid - tileset.first_gid;
             let tile = &tileset.tiles[tile_id as usize];
             if let Some(tile_type) = &tile.tile_type {
