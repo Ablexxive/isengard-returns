@@ -1,5 +1,8 @@
 use ggez::*;
-use ggez::input::mouse::MouseButton;
+use ggez::input::{
+    keyboard::{KeyCode, KeyMods},
+    mouse::MouseButton,
+};
 use specs::prelude::*;
 
 use components::*;
@@ -9,6 +12,7 @@ use systems::*;
 
 mod components;
 mod grid;
+mod level;
 mod rect;
 mod resources;
 mod systems;
@@ -16,6 +20,7 @@ mod systems;
 struct State<'a, 'b> {
     world: World,
     dispatcher: Dispatcher<'a, 'b>,
+    reload_level: bool,
 }
 
 impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
@@ -50,27 +55,48 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
         }
     }
 
+    fn key_down_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods, repeat: bool) {
+        if repeat {
+            return;
+        }
+
+        if keycode == KeyCode::Escape {
+            event::quit(ctx);
+        }
+
+        if keycode == KeyCode::R {
+            self.reload_level = true;
+        }
+    }
+
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
         // Call maintain to update all entities created via input events.
         self.world.maintain();
 
-        {
-            // Sets the time and updates it
-            let mut delta = self.world.write_resource::<DeltaTime>();
-            let duration = timer::duration_to_f64(timer::delta(ctx));
-            *delta = DeltaTime(duration as f32);
+        if self.reload_level {
+            level::load_level(&mut self.world);
+            self.reload_level = false;
+        } else {
+            {
+                // Sets the time and updates it
+                let duration = timer::duration_to_f64(timer::delta(ctx));
+                self.world.insert(DeltaTime(duration as f32));
 
-            // Clears collision event vector
-            let mut collisions = self.world.write_resource::<Vec<CollisionEvent>>();
-            collisions.clear();
-            let mut death_events = self.world.write_resource::<Vec<DeathEvent>>();
-            death_events.clear();
+                // Clears collision event vector
+                let mut collisions = self.world.write_resource::<Vec<CollisionEvent>>();
+                collisions.clear();
+                let mut death_events = self.world.write_resource::<Vec<DeathEvent>>();
+                death_events.clear();
+            }
+
+            if *self.world.read_resource::<PlayState>() == PlayState::Play {
+                self.dispatcher.dispatch(&mut self.world);
+
+                // Update all entities created/deleted in systems.
+                self.world.maintain();
+            }
         }
 
-        if *self.world.read_resource::<PlayState>() == PlayState::Play {
-            self.dispatcher.dispatch(&mut self.world);
-            self.world.maintain();
-        }
         Ok(())
     }
 
@@ -102,6 +128,8 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             mb.build(ctx)?
         };
         graphics::draw(ctx, &grid_mesh, graphics::DrawParam::default())?;
+
+        // TODO: Sort our drawables so enemies are rendered on top of buildings!
 
         for (transform, drawable) in (&transforms, &drawables).join() {
             let mesh = match drawable {
@@ -181,12 +209,17 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
         // Highlight the grid cell the mouse is hovering over.
         let mouse_pos = input::mouse::position(ctx);
         let (cell_x, cell_y) = ((mouse_pos.x / grid.cell_size) as u32, (mouse_pos.y / grid.cell_size) as u32);
-        if let Some(_) = grid.get_cell(cell_x, cell_y) {
+        if let Some(cell) = grid.get_cell(cell_x, cell_y) {
+            let color = if cell == GridCell::Buildable {
+                graphics::Color::from_rgba(0, 0, 127, 127)
+            } else {
+                graphics::Color::from_rgba(127, 0, 0, 127)
+            };
             let mesh = graphics::Mesh::new_rectangle(
                 ctx,
                 graphics::DrawMode::fill(),
                 graphics::Rect::new(cell_x as f32 * grid.cell_size, cell_y as f32 * grid.cell_size, grid.cell_size, grid.cell_size),
-                graphics::Color::from_rgba(127, 127, 127, 127),
+                color,
             )?;
             graphics::draw(ctx, &mesh, graphics::DrawParam::default())?;
         }
@@ -217,17 +250,13 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
 }
 
 impl<'a, 'b> State<'a, 'b> {
-    fn new() -> Self {
-        let grid = Grid::new(20, 20, 40.0);
-
+    fn new(_ctx: &mut Context) -> GameResult<Self> {
+        // Set up the specs world.
         let mut world = World::new();
         world.register::<Transform>();
         world.register::<Drawable>();
         // Currently the Projectile resource isn't accessed by any systems so it needs to be registered here.
         world.register::<Projectile>();
-
-        // Insert initial resources.
-        world.insert(grid);
 
         let mut dispatcher = DispatcherBuilder::new()
             .with(EnemyAi, "enemy_ai", &[])
@@ -242,51 +271,22 @@ impl<'a, 'b> State<'a, 'b> {
 
         dispatcher.setup(&mut world);
 
-        // Generate a level in code (for now). We'll do this via data files soon.
+        // Load the level!
+        level::load_level(&mut world);
 
-        // Waypoints
-        world.create_entity()
-            .with(Waypoint {id: 0})
-            .with(Transform::new(100.0, 300.0))
-            .with(Drawable::Waypoint)
-            .build();
-
-        // Enemy Spawner
-        world.create_entity()
-            .with(Spawner::default())
-            .with(Transform::new(0.0, 200.0))
-            .with(Drawable::Spawner)
-            .build();
-
-        // Base
-        world.create_entity()
-            .with(Base {})
-            .with(Waypoint {id: 1})
-            .with(Transform::new(400.0, 200.0))
-            .with(Drawable::Base)
-            .with(Faction::Player)
-            .with(Health { current_hp: 1 })
-            .with(Collider::new(40.0, 40.0))
-            .build();
-
-        Self {
+        Ok(Self {
             world,
             dispatcher,
-        }
+            reload_level: false,
+        })
     }
 }
 
 fn main() -> GameResult {
-    // State via ggez
-    let mut state = State::new();
-
-    let config = conf::Conf {
-        window_setup: conf::WindowSetup::default()
-            .title("Isengard Returns!"),
-        .. conf::Conf::default()
-    };
-    let (ref mut ctx, ref mut event_loop) = ContextBuilder::new("isengard_returns", "studio_giblets")
-        .conf(config)
+    let (mut ctx, mut event_loop) = ContextBuilder::new("isengard_returns", "studio_giblets")
+        .add_resource_path("./assets")
+        .window_setup(conf::WindowSetup::default().title("Isengard Returns!"))
         .build()?;
-    event::run(ctx, event_loop, &mut state)
+    let mut state = State::new(&mut ctx)?;
+    event::run(&mut ctx, &mut event_loop, &mut state)
 }
