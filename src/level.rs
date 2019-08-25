@@ -9,6 +9,8 @@ pub fn load_level(world: &mut World) {
     // Clear out world first and reset resources.
     world.delete_all();
     world.insert(PlayState::Play);
+    // TODO: Make starting resources tunable in data somehow.
+    world.insert(BuildResources { bits: 30 });
 
     let map = tiled::parse_file("assets/levels/test.tmx")
         .expect("Could not parse level");

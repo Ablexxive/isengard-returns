@@ -16,6 +16,11 @@ impl Default for PlayState {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+pub struct BuildResources {
+    pub bits: u32,
+}
+
 pub struct CollisionEvent {
     pub entity_a: Entity,
     pub entity_b: Entity,
