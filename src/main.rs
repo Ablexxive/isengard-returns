@@ -39,6 +39,11 @@ struct State<'a, 'b> {
 
 impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
+        // Imgui is taking mouse input, so ignore this click.
+        if self.imgui.io().want_capture_mouse {
+            return;
+        }
+
         // TODO: Move this to a system.
         // If the player clicks on an open spot on the grid and has enough bits, then build a tower.
         if button == MouseButton::Left && *self.world.read_resource::<PlayState>() == PlayState::Play &&
@@ -78,6 +83,11 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
     }
 
     fn key_down_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods, repeat: bool) {
+        // Imgui is taking keyboard input, so ignore this key.
+        if self.imgui.io().want_capture_keyboard {
+            return;
+        }
+
         if repeat {
             return;
         }
