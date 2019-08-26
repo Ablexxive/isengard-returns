@@ -6,14 +6,15 @@ authors = ["Gabriel Martinez <reitaka@gmail.com>",
            "Sahil Khanna <sahilsan@gmail.com>"]
 
 [dependencies]
+#ggez = "0.5"
+ggez = { git = "https://github.com/mystal/ggez", branch = "dev" }
+specs = { version = "0.15", features = ["specs-derive"] }
+tiled = { git = "https://github.com/mystal/rs-tiled", branch = "dev" }
+
 # TODO: Put gfx and imgui dependencies behind a feature group.
 gfx = "0.18"
 gfx_core = "0.9"
 gfx_device_gl = "0.16"
-#ggez = "0.5"
-ggez = { git = "https://github.com/mystal/ggez", branch = "dev" }
 imgui = "0.1"
 imgui-gfx-renderer = "0.1"
 imgui-winit-support = "0.1"
-specs = { version = "0.15", features = ["specs-derive"] }
-tiled = { git = "https://github.com/mystal/rs-tiled", branch = "dev" }

@@ -1,23 +1,21 @@
 use std::f32;
 
-use gfx_core::memory::Typed;
 use ggez::*;
 use ggez::input::{
     keyboard::{KeyCode, KeyMods},
     mouse::MouseButton,
 };
 use ggez::nalgebra::Point2;
-use imgui::Context as ImguiContext;
-use imgui_gfx_renderer::{Renderer as ImguiRenderer, Shaders};
-use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use specs::prelude::*;
 
 use components::*;
+use debug_ui::DebugUi;
 use grid::*;
 use resources::*;
 use systems::*;
 
 mod components;
+mod debug_ui;
 mod grid;
 mod level;
 mod rect;
@@ -30,17 +28,13 @@ struct State<'a, 'b> {
     dispatcher: Dispatcher<'a, 'b>,
     reload_level: bool,
 
-    // Dear Imgui state.
-    // TODO: Put these in their own struct and file to simplify things.
-    imgui: ImguiContext,
-    platform: WinitPlatform,
-    renderer: ImguiRenderer<gfx::format::Rgba8, gfx_device_gl::Resources>,
+    debug_ui: DebugUi,
 }
 
 impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
-        // Imgui is taking mouse input, so ignore this click.
-        if self.imgui.io().want_capture_mouse {
+        // Debug UI is taking mouse input, so ignore this click.
+        if self.debug_ui.io().want_capture_mouse {
             return;
         }
 
@@ -83,8 +77,8 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
     }
 
     fn key_down_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods, repeat: bool) {
-        // Imgui is taking keyboard input, so ignore this key.
-        if self.imgui.io().want_capture_keyboard {
+        // Debug UI is taking keyboard input, so ignore this key.
+        if self.debug_ui.io().want_capture_keyboard {
             return;
         }
 
@@ -103,7 +97,7 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
 
     fn raw_winit_event(&mut self, ctx: &mut Context, event: &event::winit_event::Event) {
         // NOTE: This is called before any other event handlers.
-        self.platform.handle_event(self.imgui.io_mut(), graphics::window(ctx), event);
+        self.debug_ui.handle_event(ctx, event);
     }
 
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
@@ -137,12 +131,9 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
         Ok(())
     }
 
-    fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
-        // Set up Dear Imgui for this frame.
-        self.platform.prepare_frame(self.imgui.io_mut(), graphics::window(ctx))
-            .map_err(|err| GameError::WindowError(err))?;
-        // NOTE: Setting delta time directly instead of calling io_mut().update_delta_time().
-        self.imgui.io_mut().delta_time = timer::duration_to_f64(timer::delta(ctx)) as f32;
+    fn draw(&mut self, ctx: &mut Context) -> GameResult {
+        // Set up debug UI for this frame.
+        self.debug_ui.prepare_frame(ctx)?;
 
         graphics::clear(ctx, graphics::BLACK);
 
@@ -299,25 +290,11 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             _ => {}
         }
 
-        // Build our Dear Imgui UI elements.
-        let ui = self.imgui.frame();
-        let mut opened = false;
-        ui.show_demo_window(&mut opened);
-
-        // Render our Dear Imgui UI elements.
-        self.platform.prepare_render(&ui, graphics::window(ctx));
-        let ui_draw_data = ui.render();
-        {
-            let (factory, _device, encoder, _depth_stencil_view, render_target_view) =
-                graphics::gfx_objects(ctx);
-            let mut target = gfx_core::handle::RenderTargetView::new(render_target_view);
-            self.renderer.render(factory, encoder, &mut target, ui_draw_data)
-                .expect("Could not render Dear Imgui UI");
-        }
-        // TODO: Pipe into the GFX Renderer.
-        // render the UI with a renderer
-        //let draw_data = ui.render();
-        // renderer.render(..., draw_data).expect("UI rendering failed");
+        // Build and draw the debug UI.
+        self.debug_ui.draw_ui(ctx, |ui| {
+            let mut opened = false;
+            ui.show_demo_window(&mut opened);
+        });
 
         // NOTE: Add any over-UI rendering here.
 
@@ -351,44 +328,15 @@ impl<'a, 'b> State<'a, 'b> {
         // Load the level!
         level::load_level(&mut world);
 
-        // Initialize Dear Imgui and its GFX renderer.
-        let mut imgui = ImguiContext::create();
-        // TODO: Set imgui.ini file path.
-        let mut platform = WinitPlatform::init(&mut imgui);
-        platform.attach_window(imgui.io_mut(), graphics::window(ctx), HiDpiMode::Rounded);
-        let renderer = {
-            let (factory, device, _encoder, _depth_stencil_view, _render_target_view) =
-                graphics::gfx_objects(ctx);
-            let version = device.get_info().shading_language;
-            let shaders = if version.is_embedded {
-                if version.major >= 3 {
-                    Shaders::GlSlEs300
-                } else {
-                    Shaders::GlSlEs100
-                }
-            } else if version.major >= 4 {
-                Shaders::GlSl400
-            } else if version.major >= 3 {
-                if version.minor >= 2 {
-                    Shaders::GlSl150
-                } else {
-                    Shaders::GlSl130
-                }
-            } else {
-                Shaders::GlSl110
-            };
-            ImguiRenderer::init(&mut imgui, factory, shaders)
-                .expect("Could not initialize imgui_gfx_renderer::Renderer")
-        };
+        // Initialize the debug UI.
+        let debug_ui = DebugUi::new(ctx);
 
         Ok(Self {
             world,
             dispatcher,
             reload_level: false,
 
-            imgui,
-            platform,
-            renderer,
+            debug_ui,
         })
     }
 }
