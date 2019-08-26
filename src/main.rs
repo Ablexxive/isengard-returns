@@ -30,7 +30,8 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
         // TODO: Move this to a system.
         // If the player clicks on an open spot on the grid and has enough bits, then build a tower.
-        if button == MouseButton::Left && *self.world.read_resource::<PlayState>() == PlayState::Play &&
+        if button == MouseButton::Left &&
+            *self.world.read_resource::<PlayState>() == PlayState::Play &&
             self.world.read_resource::<BuildResources>().bits >= 10 {
             // Check which grid cell we've clicked. If nothing is there, build a tower.
             let world_pos = {
