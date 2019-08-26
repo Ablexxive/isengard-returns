@@ -261,16 +261,22 @@ pub struct DeathSystem;
 impl<'a> System<'a> for DeathSystem {
     type SystemData = (
         ReadStorage<'a, Base>,
+        ReadStorage<'a, Enemy>,
         Read<'a, Vec<DeathEvent>>,
+        Write<'a, BuildResources>,
         Write<'a, PlayState>,
     );
 
     fn run (&mut self, data: Self::SystemData) {
-        let (bases, death_events, mut play_state) = data;
+        let (bases, enemies, death_events, mut build_resources, mut play_state) = data;
 
         for death in death_events.iter() {
             if let Some(_base) = bases.get(death.entity) {
                 *play_state = PlayState::Lose;
+            }
+            if let Some(_enemy) = enemies.get(death.entity) {
+                // TODO: Make this tunable in data somehow.
+                build_resources.bits += 5;
             }
         }
     }

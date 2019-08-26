@@ -1,8 +1,11 @@
+use std::f32;
+
 use ggez::*;
 use ggez::input::{
     keyboard::{KeyCode, KeyMods},
     mouse::MouseButton,
 };
+use ggez::nalgebra::Point2;
 use specs::prelude::*;
 
 use components::*;
@@ -25,7 +28,11 @@ struct State<'a, 'b> {
 
 impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
-        if button == MouseButton::Left && *self.world.read_resource::<PlayState>() == PlayState::Play {
+        // TODO: Move this to a system.
+        // If the player clicks on an open spot on the grid and has enough bits, then build a tower.
+        if button == MouseButton::Left &&
+            *self.world.read_resource::<PlayState>() == PlayState::Play &&
+            self.world.read_resource::<BuildResources>().bits >= 10 {
             // Check which grid cell we've clicked. If nothing is there, build a tower.
             let world_pos = {
                 let mut grid = self.world.write_resource::<Grid>();
@@ -50,6 +57,11 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
                     .with(Faction::Player)
                     .with(Shooter { seconds_per_attack: 1.0, cooldown: 0.0, attack_radius: 100.0 })
                     .build();
+
+                // Spend resources!
+                // TODO: Make the cost tunable in data somehow.
+                self.world.write_resource::<BuildResources>().bits -= 10;
+
                 println!("Built tower at {:?}!", (world_x, world_y));
             };
         }
@@ -107,10 +119,11 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             ReadStorage<Transform>,
             ReadStorage<Drawable>,
             ReadStorage<Shooter>,
+            Read<BuildResources>,
             Read<Grid>,
             Read<PlayState>,
         ) = self.world.system_data();
-        let (transforms, drawables, shooters, grid, play_state) = system_data;
+        let (transforms, drawables, shooters, build_resources, grid, play_state) = system_data;
 
         // Draw the grid first.
         let grid_mesh = {
@@ -223,6 +236,17 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             )?;
             graphics::draw(ctx, &mesh, graphics::DrawParam::default())?;
         }
+
+        // Draw amount of bits.
+        // TODO: This ggez API to right-align text is dumb. I don't want to have to specify a
+        // bounding size, just let me right-align the text.
+        graphics::draw(
+            ctx,
+            graphics::Text::new(format!("Bits: {}", build_resources.bits))
+                .set_bounds(Point2::new(400.0, f32::INFINITY), graphics::Align::Right),
+            graphics::DrawParam::default()
+                .dest([390.0, 10.0]),
+        )?;
 
         match *play_state {
             PlayState::Win => {
