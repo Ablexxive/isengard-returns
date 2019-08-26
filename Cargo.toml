@@ -10,6 +10,7 @@ authors = ["Gabriel Martinez <reitaka@gmail.com>",
 ggez = { git = "https://github.com/mystal/ggez", branch = "dev" }
 specs = { version = "0.15", features = ["specs-derive"] }
 tiled = { git = "https://github.com/mystal/rs-tiled", branch = "dev" }
+walkdir = "2"
 
 # TODO: Put gfx and imgui dependencies behind a feature group.
 gfx = "0.18"

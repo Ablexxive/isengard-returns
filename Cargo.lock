@@ -929,6 +929,7 @@ dependencies = [
  "imgui-winit-support 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "specs 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiled 0.8.0 (git+https://github.com/mystal/rs-tiled?branch=dev)",
+ "walkdir 2.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

@@ -9,7 +9,7 @@ use ggez::nalgebra::Point2;
 use specs::prelude::*;
 
 use components::*;
-use debug_ui::DebugUi;
+use debug_ui::*;
 use grid::*;
 use resources::*;
 use systems::*;
@@ -22,13 +22,23 @@ mod rect;
 mod resources;
 mod systems;
 
+#[derive(Clone, Debug)]
+enum LoadLevelRequest {
+    None,
+    Reload,
+    NewLevel(String),
+}
+
 struct State<'a, 'b> {
     // Game state.
     world: World,
     dispatcher: Dispatcher<'a, 'b>,
-    reload_level: bool,
+    current_level: String,
+    level_request: LoadLevelRequest,
 
     debug_ui: DebugUi,
+    // Debug UI state.
+    level_list: Vec<String>,
 }
 
 impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
@@ -91,7 +101,7 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
         }
 
         if keycode == KeyCode::R {
-            self.reload_level = true;
+            self.level_request = LoadLevelRequest::Reload;
         }
     }
 
@@ -101,12 +111,19 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
     }
 
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
+        // TODO: Watch level directory for changes and update level_list if any files are
+        // added/removed.
+
         // Call maintain to update all entities created via input events.
         self.world.maintain();
 
-        if self.reload_level {
-            level::load_level(&mut self.world);
-            self.reload_level = false;
+        if let LoadLevelRequest::Reload = self.level_request {
+            level::load_level(&self.current_level, &mut self.world);
+            self.level_request = LoadLevelRequest::None;
+        } else if let LoadLevelRequest::NewLevel(level_name) = &self.level_request {
+            level::load_level(level_name, &mut self.world);
+            self.current_level = level_name.clone();
+            self.level_request = LoadLevelRequest::None;
         } else {
             {
                 // Sets the time and updates it
@@ -291,9 +308,30 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
         }
 
         // Build and draw the debug UI.
+        let level_request = &mut self.level_request;
+        let level_list = &self.level_list;
+        let current_level = &self.current_level;
         self.debug_ui.draw_ui(ctx, |ui| {
-            let mut opened = false;
-            ui.show_demo_window(&mut opened);
+            ui.main_menu_bar(|| {
+                ui.menu(im_str!("Level")).build(|| {
+                    ui.menu(im_str!("Load")).build(|| {
+                        // Populate with list of levels.
+                        for level_name in level_list {
+                            let load_level = ui.menu_item(&im_str!("{}", level_name))
+                                .build();
+                            if load_level {
+                                *level_request = LoadLevelRequest::NewLevel(level_name.clone());
+                            }
+                        }
+                    });
+                    let reload_level = ui.menu_item(&im_str!("Reload \"{}\"", current_level))
+                        //.shortcut(im_str!("CTRL+R"))
+                        .build();
+                    if reload_level {
+                        *level_request = LoadLevelRequest::Reload;
+                    }
+                });
+            });
         });
 
         // NOTE: Add any over-UI rendering here.
@@ -326,17 +364,22 @@ impl<'a, 'b> State<'a, 'b> {
         dispatcher.setup(&mut world);
 
         // Load the level!
-        level::load_level(&mut world);
+        let start_level = "test";
+        level::load_level(start_level, &mut world);
 
         // Initialize the debug UI.
         let debug_ui = DebugUi::new(ctx);
 
+        let level_list = level::find_levels();
+
         Ok(Self {
             world,
             dispatcher,
-            reload_level: false,
+            current_level: start_level.to_owned(),
+            level_request: LoadLevelRequest::None,
 
             debug_ui,
+            level_list,
         })
     }
 }

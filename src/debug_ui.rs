@@ -1,3 +1,5 @@
+pub use imgui::im_str;
+
 use gfx_core::memory::Typed;
 use ggez::*;
 use ggez::event::winit_event::Event;
@@ -13,6 +15,9 @@ pub struct DebugUi {
 
 impl DebugUi {
     pub fn new(ctx: &mut Context) -> Self {
+        // NOTE: This init code is based on:
+        // https://github.com/Gekkio/imgui-rs/blob/v0.1.0/imgui-gfx-examples/examples/support/mod.rs
+
         // Initialize Dear Imgui and its GFX renderer.
         let mut imgui = ImguiContext::create();
         // TODO: Set imgui.ini file path.
@@ -68,7 +73,6 @@ impl DebugUi {
     {
         // Build our Dear Imgui UI elements.
         let ui = self.imgui.frame();
-
         func(&ui);
 
         // Render our Dear Imgui UI elements.
