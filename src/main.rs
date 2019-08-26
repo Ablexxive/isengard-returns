@@ -38,6 +38,7 @@ struct State<'a, 'b> {
 
     debug_ui: DebugUi,
     // Debug UI state.
+    show_debug_ui: bool,
     level_list: Vec<String>,
 }
 
@@ -96,12 +97,15 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             return;
         }
 
-        if keycode == KeyCode::Escape {
-            event::quit(ctx);
-        }
-
-        if keycode == KeyCode::R {
-            self.level_request = LoadLevelRequest::Reload;
+        match keycode {
+            KeyCode::Escape => event::quit(ctx),
+            KeyCode::R => {
+                self.level_request = LoadLevelRequest::Reload;
+            }
+            KeyCode::Grave => {
+                self.show_debug_ui = !self.show_debug_ui;
+            }
+            _ => {}
         }
     }
 
@@ -308,31 +312,33 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
         }
 
         // Build and draw the debug UI.
-        let level_request = &mut self.level_request;
-        let level_list = &self.level_list;
-        let current_level = &self.current_level;
-        self.debug_ui.draw_ui(ctx, |ui| {
-            ui.main_menu_bar(|| {
-                ui.menu(im_str!("Level")).build(|| {
-                    ui.menu(im_str!("Load")).build(|| {
-                        // Populate with list of levels.
-                        for level_name in level_list {
-                            let load_level = ui.menu_item(&im_str!("{}", level_name))
-                                .build();
-                            if load_level {
-                                *level_request = LoadLevelRequest::NewLevel(level_name.clone());
+        if self.show_debug_ui {
+            let level_request = &mut self.level_request;
+            let level_list = &self.level_list;
+            let current_level = &self.current_level;
+            self.debug_ui.draw_ui(ctx, |ui| {
+                ui.main_menu_bar(|| {
+                    ui.menu(im_str!("Level")).build(|| {
+                        ui.menu(im_str!("Load")).build(|| {
+                            // Populate with list of levels.
+                            for level_name in level_list {
+                                let load_level = ui.menu_item(&im_str!("{}", level_name))
+                                    .build();
+                                if load_level {
+                                    *level_request = LoadLevelRequest::NewLevel(level_name.clone());
+                                }
                             }
+                        });
+                        let reload_level = ui.menu_item(&im_str!("Reload \"{}\"", current_level))
+                            //.shortcut(im_str!("CTRL+R"))
+                            .build();
+                        if reload_level {
+                            *level_request = LoadLevelRequest::Reload;
                         }
                     });
-                    let reload_level = ui.menu_item(&im_str!("Reload \"{}\"", current_level))
-                        //.shortcut(im_str!("CTRL+R"))
-                        .build();
-                    if reload_level {
-                        *level_request = LoadLevelRequest::Reload;
-                    }
                 });
             });
-        });
+        }
 
         // NOTE: Add any over-UI rendering here.
 
@@ -379,6 +385,7 @@ impl<'a, 'b> State<'a, 'b> {
             level_request: LoadLevelRequest::None,
 
             debug_ui,
+            show_debug_ui: false,
             level_list,
         })
     }
