@@ -643,7 +643,7 @@ dependencies = [
 [[package]]
 name = "ggez"
 version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/mystal/ggez?branch=dev#722a8c887dbbcac63bb93598edb5a5051aef8293"
 dependencies = [
  "approx 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -861,6 +861,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "imgui"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gfx 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "imgui-sys 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lazy_static 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parking_lot 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "imgui-gfx-renderer"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "gfx 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "imgui 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "winapi 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "imgui-sys"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "cc 1.0.38 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "imgui-winit-support"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "imgui 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "winit 0.19.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "inflate"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -881,9 +920,16 @@ dependencies = [
 name = "isengard-returns"
 version = "0.1.0"
 dependencies = [
- "ggez 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gfx 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gfx_core 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gfx_device_gl 0.16.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ggez 0.5.1 (git+https://github.com/mystal/ggez?branch=dev)",
+ "imgui 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "imgui-gfx-renderer 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "imgui-winit-support 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "specs 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiled 0.8.0 (git+https://github.com/mystal/rs-tiled?branch=dev)",
+ "walkdir 2.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2346,7 +2392,7 @@ dependencies = [
 "checksum gfx_device_gl 0.16.1 (registry+https://github.com/rust-lang/crates.io-index)" = "3fdb9c21d057f32d5a9fc7b8737a28e09a93006a095e0a129723b424cffd2003"
 "checksum gfx_gl 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8525888d909a6424b04f9136976f07a85fc1f3704555c1a73897e258326c8319"
 "checksum gfx_window_glutin 0.30.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f415d3534e6ea92f3ded1683e9e00592a76e2e67050e33244bb507719a211eb2"
-"checksum ggez 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2a76347431050a0b4e1a925124cdcde614b628260093bb52560d9c6b48435336"
+"checksum ggez 0.5.1 (git+https://github.com/mystal/ggez?branch=dev)" = "<none>"
 "checksum gif 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)" = "86c2f2b597d6e05c86ee5947b2223bda468fe8dad3e88e2a6520869322aaf568"
 "checksum gilrs 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b012698ad05fc2b88cdf38cd4bc1c94f7fea862ea26cef36aee03de877ef028b"
 "checksum gilrs-core 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "410f453995157b78c4bb941e5dffd6d9f7d7976ce60899c052b340e61e381ccd"
@@ -2365,6 +2411,10 @@ dependencies = [
 "checksum hibitset 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "47e7292fd9f7fe89fa35c98048f2d0a69b79ed243604234d18f6f8a1aa6f408d"
 "checksum hound 3.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8a164bb2ceaeff4f42542bdb847c41517c78a60f5649671b2a07312b6e117549"
 "checksum image 0.22.1 (registry+https://github.com/rust-lang/crates.io-index)" = "663a975007e0b49903e2e8ac0db2c432c465855f2d65f17883ba1476e85f0b42"
+"checksum imgui 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b0e137a2e2843161f2de8b7acda2e79e60cc67ecb539303fc65b5d76f38d9dc7"
+"checksum imgui-gfx-renderer 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "09e6a49e7ef84b17a3882298a2f2cc37e43e24884cedb10df859453a8998e526"
+"checksum imgui-sys 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e5efa427def85658779af5061dd125921aa3269cc968b5a8856450ddf950d57f"
+"checksum imgui-winit-support 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "dd9626646610c5dc5639b33b42de59b6fc2e7913aae483a68b29c0039f379390"
 "checksum inflate 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)" = "1cdb29978cc5797bd8dcc8e5bf7de604891df2a8dc576973d71a281e916db2ff"
 "checksum io-kit-sys 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f21dcc74995dd4cd090b147e79789f8d65959cbfb5f0b118002db869ea3bd0a0"
 "checksum itoa 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)" = "501266b7edd0174f8530248f87f99c88fbe60ca4ef3dd486835b8d8d53136f7f"

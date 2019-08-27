@@ -1,18 +1,53 @@
+use std::ffi::OsStr;
+
 use tiled::PropertyValue;
 use specs::prelude::*;
+use walkdir::{DirEntry, WalkDir};
 
 use crate::grid::*;
 use crate::components::*;
 use crate::resources::*;
 
-pub fn load_level(world: &mut World) {
+const LEVEL_DIR: &str = "assets/levels";
+
+pub fn find_levels() -> Vec<String> {
+    fn has_tmx_extension(entry: &DirEntry) -> bool {
+        entry.path().extension() == Some(OsStr::new("tmx"))
+    }
+
+    // Find all Tiled .tmx files in the level directory.
+    let mut level_list = Vec::new();
+    for entry in WalkDir::new(LEVEL_DIR).into_iter()
+        .filter_entry(|entry| entry.file_type().is_dir() || has_tmx_extension(entry)) {
+        if let Ok(entry) = entry {
+            if entry.file_type().is_dir() {
+                continue;
+            }
+
+            // Remove "assets/levels/" and the ".tmx" extension from the level's path.
+            let level_name = entry.path()
+                .strip_prefix(LEVEL_DIR).ok()
+                .and_then(|path| path.file_stem())
+                .and_then(|path| path.to_str())
+                .map(|path| path.to_owned());
+            if let Some(level_name) = level_name {
+                level_list.push(level_name);
+            }
+        }
+    }
+
+    level_list
+}
+
+pub fn load_level(level_name: &str, world: &mut World) {
     // Clear out world first and reset resources.
     world.delete_all();
     world.insert(PlayState::Play);
     // TODO: Make starting resources tunable in data somehow.
     world.insert(BuildResources { bits: 30 });
 
-    let map = tiled::parse_file("assets/levels/test.tmx")
+    let level_path = format!("{}/{}.tmx", LEVEL_DIR, level_name);
+    let map = tiled::parse_file(level_path)
         .expect("Could not parse level");
 
     // Initialize Grid from Grid layer.

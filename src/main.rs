@@ -9,25 +9,46 @@ use ggez::nalgebra::Point2;
 use specs::prelude::*;
 
 use components::*;
+use debug_ui::*;
 use grid::*;
 use resources::*;
 use systems::*;
 
 mod components;
+mod debug_ui;
 mod grid;
 mod level;
 mod rect;
 mod resources;
 mod systems;
 
+#[derive(Clone, Debug)]
+enum LoadLevelRequest {
+    None,
+    Reload,
+    NewLevel(String),
+}
+
 struct State<'a, 'b> {
+    // Game state.
     world: World,
     dispatcher: Dispatcher<'a, 'b>,
-    reload_level: bool,
+    current_level: String,
+    level_request: LoadLevelRequest,
+
+    debug_ui: DebugUi,
+    // Debug UI state.
+    show_debug_ui: bool,
+    level_list: Vec<String>,
 }
 
 impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
+        // Debug UI is taking mouse input, so ignore this click.
+        if self.debug_ui.io().want_capture_mouse {
+            return;
+        }
+
         // TODO: Move this to a system.
         // If the player clicks on an open spot on the grid and has enough bits, then build a tower.
         if button == MouseButton::Left &&
@@ -68,26 +89,46 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
     }
 
     fn key_down_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods, repeat: bool) {
+        // Debug UI is taking keyboard input, so ignore this key.
+        if self.debug_ui.io().want_capture_keyboard {
+            return;
+        }
+
         if repeat {
             return;
         }
 
-        if keycode == KeyCode::Escape {
-            event::quit(ctx);
-        }
-
-        if keycode == KeyCode::R {
-            self.reload_level = true;
+        match keycode {
+            KeyCode::Escape => event::quit(ctx),
+            KeyCode::R => {
+                self.level_request = LoadLevelRequest::Reload;
+            }
+            KeyCode::Grave => {
+                self.show_debug_ui = !self.show_debug_ui;
+            }
+            _ => {}
         }
     }
 
+    fn raw_winit_event(&mut self, ctx: &mut Context, event: &event::winit_event::Event) {
+        // NOTE: This is called before any other event handlers.
+        self.debug_ui.handle_event(ctx, event);
+    }
+
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
+        // TODO: Watch level directory for changes and update level_list if any files are
+        // added/removed.
+
         // Call maintain to update all entities created via input events.
         self.world.maintain();
 
-        if self.reload_level {
-            level::load_level(&mut self.world);
-            self.reload_level = false;
+        if let LoadLevelRequest::Reload = self.level_request {
+            level::load_level(&self.current_level, &mut self.world);
+            self.level_request = LoadLevelRequest::None;
+        } else if let LoadLevelRequest::NewLevel(level_name) = &self.level_request {
+            level::load_level(level_name, &mut self.world);
+            self.current_level = level_name.clone();
+            self.level_request = LoadLevelRequest::None;
         } else {
             {
                 // Sets the time and updates it
@@ -112,7 +153,10 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
         Ok(())
     }
 
-    fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
+    fn draw(&mut self, ctx: &mut Context) -> GameResult {
+        // Set up debug UI for this frame.
+        self.debug_ui.prepare_frame(ctx)?;
+
         graphics::clear(ctx, graphics::BLACK);
 
         let system_data: (
@@ -268,13 +312,44 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             _ => {}
         }
 
+        // Build and draw the debug UI.
+        if self.show_debug_ui {
+            let level_request = &mut self.level_request;
+            let level_list = &self.level_list;
+            let current_level = &self.current_level;
+            self.debug_ui.draw_ui(ctx, |ui| {
+                ui.main_menu_bar(|| {
+                    ui.menu(im_str!("Level")).build(|| {
+                        ui.menu(im_str!("Load")).build(|| {
+                            // Populate with list of levels.
+                            for level_name in level_list {
+                                let load_level = ui.menu_item(&im_str!("{}", level_name))
+                                    .build();
+                                if load_level {
+                                    *level_request = LoadLevelRequest::NewLevel(level_name.clone());
+                                }
+                            }
+                        });
+                        let reload_level = ui.menu_item(&im_str!("Reload \"{}\"", current_level))
+                            //.shortcut(im_str!("CTRL+R"))
+                            .build();
+                        if reload_level {
+                            *level_request = LoadLevelRequest::Reload;
+                        }
+                    });
+                });
+            });
+        }
+
+        // NOTE: Add any over-UI rendering here.
+
         graphics::present(ctx)?;
         Ok(())
     }
 }
 
 impl<'a, 'b> State<'a, 'b> {
-    fn new(_ctx: &mut Context) -> GameResult<Self> {
+    fn new(ctx: &mut Context) -> GameResult<Self> {
         // Set up the specs world.
         let mut world = World::new();
         world.register::<Transform>();
@@ -296,12 +371,23 @@ impl<'a, 'b> State<'a, 'b> {
         dispatcher.setup(&mut world);
 
         // Load the level!
-        level::load_level(&mut world);
+        let start_level = "test";
+        level::load_level(start_level, &mut world);
+
+        // Initialize the debug UI.
+        let debug_ui = DebugUi::new(ctx);
+
+        let level_list = level::find_levels();
 
         Ok(Self {
             world,
             dispatcher,
-            reload_level: false,
+            current_level: start_level.to_owned(),
+            level_request: LoadLevelRequest::None,
+
+            debug_ui,
+            show_debug_ui: false,
+            level_list,
         })
     }
 }
