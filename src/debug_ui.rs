@@ -77,6 +77,9 @@ impl DebugUi {
         self.platform.handle_event(self.imgui.io_mut(), graphics::window(ctx), event);
     }
 
+    /// Frame preparation method.
+    ///
+    /// Call this before calling `draw_ui`.
     pub fn prepare_frame(&mut self, ctx: &Context) -> GameResult {
         self.platform.prepare_frame(self.imgui.io_mut(), graphics::window(ctx))
             .map_err(|err| GameError::WindowError(err))?;
