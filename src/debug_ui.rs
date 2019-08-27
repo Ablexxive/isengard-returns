@@ -20,6 +20,23 @@ impl DebugUi {
 
         // Initialize Dear Imgui and its GFX renderer.
         let mut imgui = ImguiContext::create();
+        // Convert Imgui's style colors from sRGB to linear since we're using an sRGB framebuffer.
+        // NOTE: Make sure to do this after loading any themes.
+        {
+            fn imgui_gamma_to_linear(col: [f32; 4]) -> [f32; 4] {
+                let x = col[0].powf(2.2);
+                let y = col[1].powf(2.2);
+                let z = col[2].powf(2.2);
+                let w = 1.0 - (1.0 - col[3]).powf(2.2);
+                [x, y, z, w]
+            }
+
+            let style = imgui.style_mut();
+            for col in 0..style.colors.len() {
+                style.colors[col] = imgui_gamma_to_linear(style.colors[col]);
+            }
+        }
+
         // TODO: Set imgui.ini file path.
         let mut platform = WinitPlatform::init(&mut imgui);
         platform.attach_window(imgui.io_mut(), graphics::window(ctx), HiDpiMode::Rounded);
