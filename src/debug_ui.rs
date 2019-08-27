@@ -21,13 +21,14 @@ impl DebugUi {
         // Initialize Dear Imgui and its GFX renderer.
         let mut imgui = ImguiContext::create();
         // Convert Imgui's style colors from sRGB to linear since we're using an sRGB framebuffer.
+        // See: https://github.com/ocornut/imgui/issues/578
         // NOTE: Make sure to do this after loading any themes.
         {
             fn imgui_gamma_to_linear(col: [f32; 4]) -> [f32; 4] {
                 let x = col[0].powf(2.2);
                 let y = col[1].powf(2.2);
                 let z = col[2].powf(2.2);
-                let w = 1.0 - (1.0 - col[3]).powf(2.2);
+                let w = col[3];
                 [x, y, z, w]
             }
 
