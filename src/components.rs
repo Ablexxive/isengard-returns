@@ -28,6 +28,7 @@ pub enum Drawable {
     Spawner,
     Base,
     Waypoint,
+    Sun,
 }
 
 #[derive(Clone, Debug, Component)]

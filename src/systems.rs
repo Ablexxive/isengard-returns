@@ -1,4 +1,4 @@
-use ggez::nalgebra;
+use ggez::nalgebra as na;
 use specs::prelude::*;
 
 use crate::components::*;
@@ -45,7 +45,7 @@ impl<'a> System<'a> for ShooterSystem {
                 for (target_transform, target_fraction) in (&transforms, &factions).join() {
                     if target_fraction != faction {
                         // Determine if enemy is within range of the tower
-                        let distance = nalgebra::distance(&transform.position, &target_transform.position);
+                        let distance = na::distance(&transform.position, &target_transform.position);
                         if distance <= shooter.attack_radius {
                             shooter.cooldown = shooter.seconds_per_attack;
                             // Spawning the projectile
@@ -228,7 +228,7 @@ impl<'a> System<'a> for EnemyAi {
             // Update which waypoint an enemy is heading towards
             let mut waypoint_transform = transforms.get(enemy.current_waypoint)
                 .expect("Waypoint doesn't have a transform?");
-            let distance = nalgebra::distance(&transform.position, &waypoint_transform.position);
+            let distance = na::distance(&transform.position, &waypoint_transform.position);
 
             if distance <= 10.0 {
                 let new_waypoint_id = waypoints.get(enemy.current_waypoint).expect("Enemy doesn't have a waypoint. Boo.")

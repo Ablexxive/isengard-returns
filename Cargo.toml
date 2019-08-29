@@ -8,6 +8,7 @@ authors = ["Gabriel Martinez <reitaka@gmail.com>",
 [dependencies]
 #ggez = "0.5"
 ggez = { git = "https://github.com/mystal/ggez", branch = "dev" }
+rand = "0.7"
 specs = { version = "0.15", features = ["specs-derive"] }
 tiled = { git = "https://github.com/mystal/rs-tiled", branch = "dev" }
 walkdir = "2"

@@ -18,6 +18,7 @@ mod components;
 mod debug_ui;
 mod grid;
 mod level;
+mod modes;
 mod rect;
 mod resources;
 mod systems;
@@ -190,6 +191,7 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
 
         // TODO: Sort our drawables so enemies are rendered on top of buildings!
 
+        // TODO: Instead of a Drawable, have Shape, Sprite, and other drawable components.
         for (transform, drawable) in (&transforms, &drawables).join() {
             let mesh = match drawable {
                 Drawable::Tower => {
@@ -246,6 +248,16 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
                         8.0,
                         0.1,
                         graphics::Color::from_rgb(100, 100, 100),
+                    )?
+                },
+                Drawable::Sun => {
+                    graphics::Mesh::new_circle(
+                        ctx,
+                        graphics::DrawMode::fill(),
+                        mint::Point2{x: 0.0, y: 0.0},
+                        15.0,
+                        0.1,
+                        graphics::Color::from_rgb(252, 240, 3),
                     )?
                 },
             };
@@ -323,6 +335,8 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             let level_list = &self.level_list;
             let current_level = &self.current_level;
             self.debug_ui.draw_ui(ctx, |ui| {
+                //ui.show_demo_window(&mut true);
+
                 ui.main_menu_bar(|| {
                     ui.menu(im_str!("Level")).build(|| {
                         ui.menu(im_str!("Load")).build(|| {
@@ -364,12 +378,14 @@ impl<'a, 'b> State<'a, 'b> {
 
         let mut dispatcher = DispatcherBuilder::new()
             .with(EnemyAi, "enemy_ai", &[])
-            .with(ShooterSystem, "shooter_system", &["enemy_ai"])
+            .with(modes::pvz::systems::SunBehaviorSystem, "sun_behavior", &["enemy_ai"])
+            .with(ShooterSystem, "shooter_system", &["sun_behavior"])
             .with(UpdatePosition, "update_position", &["shooter_system"])
             .with(CollisionSystem, "collision_system", &["update_position"])
             .with(AttackSystem, "attack_system", &["collision_system"])
             .with(SpawnerSystem, "spawner_system", &["attack_system"])
-            .with(DeathSystem, "death_system", &["spawner_system"])
+            .with(modes::pvz::systems::SunSpawnSystem::new(), "sun_spawn", &["spawner_system"])
+            .with(DeathSystem, "death_system", &["sun_spawn"])
             .with(WinSystem, "win_system", &["death_system"])
             .build();
 
