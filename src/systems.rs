@@ -219,7 +219,7 @@ impl<'a> System<'a> for EnemyAi {
         ReadStorage<'a, Transform>,
         WriteStorage<'a, Enemy>,
         WriteStorage<'a, Velocity>,
-        );
+    );
 
     fn run (&mut self, data: Self::SystemData) {
         let (entities, waypoints, transforms, mut enemies, mut velocities) = data;

@@ -36,6 +36,8 @@ struct State<'a, 'b> {
     current_level: String,
     level_request: LoadLevelRequest,
 
+    // TODO: Place UI state.
+
     debug_ui: DebugUi,
     // Debug UI state.
     show_debug_ui: bool,
@@ -251,16 +253,19 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             graphics::draw(ctx, &mesh, graphics::DrawParam::default().dest(transform.position))?;
         }
 
-        for (transform, shooter) in (&transforms, &shooters).join() {
-            let mesh = graphics::Mesh::new_circle(
-                       ctx,
-                       graphics::DrawMode::stroke(3.0),
-                       mint::Point2{x: 0.0, y: 0.0},
-                       shooter.attack_radius,
-                       0.1,
-                       graphics::WHITE,
-                   )?;
-            graphics::draw(ctx, &mesh, graphics::DrawParam::default().dest(transform.position))?;
+        // Draw shooter's attack radius.
+        if input::keyboard::is_mod_active(ctx, KeyMods::ALT) {
+            for (transform, shooter) in (&transforms, &shooters).join() {
+                let mesh = graphics::Mesh::new_circle(
+                    ctx,
+                    graphics::DrawMode::fill(),
+                    mint::Point2{x: 0.0, y: 0.0},
+                    shooter.attack_radius,
+                    0.1,
+                    graphics::Color::from_rgba(60, 60, 60, 60),
+                )?;
+                graphics::draw(ctx, &mesh, graphics::DrawParam::default().dest(transform.position))?;
+            }
         }
 
         // Highlight the grid cell the mouse is hovering over.
