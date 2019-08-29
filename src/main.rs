@@ -11,6 +11,7 @@ use specs::prelude::*;
 use components::*;
 use debug_ui::*;
 use grid::*;
+use rect::Rect;
 use resources::*;
 use systems::*;
 
@@ -49,6 +50,7 @@ struct State<'a, 'b> {
     debug_ui: DebugUi,
     // Debug UI state.
     show_debug_ui: bool,
+    draw_colliders: bool,
     level_list: Vec<String>,
 }
 
@@ -65,6 +67,30 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             match (&self.mouse_action, button) {
                 (MouseAction::Select, MouseButton::Left) => {
                     // TODO: If we click on a sun, then pick it up and give us more bits.
+                    // TODO: Figure out a more general way to do this. And do it somewhere better.
+                    // Maybe a system?
+                    let system_data: (
+                        Entities,
+                        Write<BuildResources>,
+                        ReadStorage<Transform>,
+                        ReadStorage<Collider>,
+                        ReadStorage<modes::pvz::components::Sun>,
+                    ) = self.world.system_data();
+                    let (entities, mut build_resources, transforms, colliders, suns) = system_data;
+
+                    for (entity, transform, collider, _sun) in (&entities, &transforms, &colliders, &suns).join() {
+                        let rect = Rect {
+                            x: transform.position.x,
+                            y: transform.position.y,
+                            width: collider.width,
+                            height: collider.height,
+                        };
+                        if rect.contains(x, y) {
+                            entities.delete(entity);
+                            build_resources.bits += 20;
+                            break;
+                        }
+                    }
                 }
                 (MouseAction::BuildTower, MouseButton::Left) => {
                     // TODO: Move this to a system.
@@ -237,9 +263,9 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
         };
         graphics::draw(ctx, &grid_mesh, graphics::DrawParam::default())?;
 
-        // TODO: Sort our drawables so enemies are rendered on top of buildings!
+        // TODO: Sort drawables so enemies are rendered on top of buildings! Give them a Z order!
 
-        // TODO: Instead of a Drawable, have Shape, Sprite, and other drawable components.
+        // TODO: Instead of a Drawable, have Shape, Sprite, and other drawable Components.
         for (transform, drawable) in (&transforms, &drawables).join() {
             let mesh = match drawable {
                 Drawable::Tower => {
@@ -484,6 +510,7 @@ impl<'a, 'b> State<'a, 'b> {
 
             debug_ui,
             show_debug_ui: false,
+            draw_colliders: false,
             level_list,
         })
     }

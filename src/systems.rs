@@ -94,6 +94,7 @@ impl<'a> System<'a> for CollisionSystem {
             };
 
             for (target_ent, target_transform, target_faction, target_collider) in (&ents, &transforms, &factions, &colliders).join() {
+                // TODO: Don't rely on faction to prevent collisions. Use masks or something.
                 if faction != target_faction {
                     let target_rect = Rect {
                         x: target_transform.position.x,

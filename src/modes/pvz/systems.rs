@@ -51,6 +51,7 @@ impl<'a> System<'a> for SunSpawnSystem {
             lazy.insert(entity, Drawable::Sun);
             lazy.insert(entity, Velocity(na::Vector2::new(0.0, SUN_FALL_SPEED)));
             lazy.insert(entity, Sun { land_y });
+            lazy.insert(entity, Collider::new(30.0, 30.0));
 
             self.timer = rng.gen_range(SUN_SPAWN_TIME_RANGE[0], SUN_SPAWN_TIME_RANGE[1]);
         }
