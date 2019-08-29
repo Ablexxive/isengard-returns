@@ -30,6 +30,12 @@ enum LoadLevelRequest {
     NewLevel(String),
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum MouseAction {
+    Select,
+    BuildTower,
+}
+
 struct State<'a, 'b> {
     // Game state.
     world: World,
@@ -37,7 +43,8 @@ struct State<'a, 'b> {
     current_level: String,
     level_request: LoadLevelRequest,
 
-    // TODO: Place UI state.
+    // Place UI state.
+    mouse_action: MouseAction,
 
     debug_ui: DebugUi,
     // Debug UI state.
@@ -52,46 +59,61 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             return;
         }
 
-        // TODO: Move this to a system.
-        // If the player clicks on an open spot on the grid and has enough bits, then build a tower.
-        if button == MouseButton::Left &&
-            *self.world.read_resource::<PlayState>() == PlayState::Play &&
-            self.world.read_resource::<BuildResources>().bits >= 10 {
-            // Check which grid cell we've clicked. If nothing is there, build a tower.
-            let world_pos = {
-                let mut grid = self.world.write_resource::<Grid>();
-                let (cell_x, cell_y) = ((x / grid.cell_size) as u32, (y / grid.cell_size) as u32);
-                if grid.is_buildable(cell_x, cell_y) {
-                    // FIXME: We might wanna defer this to after the tower actually exists. In case
-                    // something goes wrong in creating it.
-                    grid.set_cell(cell_x, cell_y, GridCell::Occupied);
-                    // Return the center of the cell in world coordinates.
-                    Some(((cell_x as f32 * grid.cell_size) + grid.cell_size / 2.0,
-                          (cell_y as f32 * grid.cell_size) + grid.cell_size / 2.0))
-                } else {
-                    None
+        let play_state = *self.world.read_resource::<PlayState>();
+
+        if play_state == PlayState::Play {
+            match (&self.mouse_action, button) {
+                (MouseAction::Select, MouseButton::Left) => {
+                    // TODO: If we click on a sun, then pick it up and give us more bits.
                 }
-            };
+                (MouseAction::BuildTower, MouseButton::Left) => {
+                    // TODO: Move this to a system.
+                    // If the player clicks on an open spot on the grid and has enough bits, then
+                    // build a tower.
+                    if  self.world.read_resource::<BuildResources>().bits >= 10 {
+                        // Check which grid cell we've clicked. If nothing is there, build a tower.
+                        let world_pos = {
+                            let mut grid = self.world.write_resource::<Grid>();
+                            let (cell_x, cell_y) = ((x / grid.cell_size) as u32, (y / grid.cell_size) as u32);
+                            if grid.is_buildable(cell_x, cell_y) {
+                                // FIXME: We might wanna defer this to after the tower actually exists. In case
+                                // something goes wrong in creating it.
+                                grid.set_cell(cell_x, cell_y, GridCell::Occupied);
+                                // Return the center of the cell in world coordinates.
+                                Some(((cell_x as f32 * grid.cell_size) + grid.cell_size / 2.0,
+                                      (cell_y as f32 * grid.cell_size) + grid.cell_size / 2.0))
+                            } else {
+                                None
+                            }
+                        };
 
-            // Try to build a tower at the location clicked.
-            if let Some((world_x, world_y)) = world_pos {
-                self.world.create_entity()
-                    .with(Transform::new(world_x, world_y))
-                    .with(Drawable::Tower)
-                    .with(Faction::Player)
-                    .with(Shooter { seconds_per_attack: 1.0, cooldown: 0.0, attack_radius: 100.0 })
-                    .build();
+                        // Try to build a tower at the location clicked.
+                        if let Some((world_x, world_y)) = world_pos {
+                            self.world.create_entity()
+                                .with(Transform::new(world_x, world_y))
+                                .with(Drawable::Tower)
+                                .with(Faction::Player)
+                                .with(Shooter { seconds_per_attack: 1.0, cooldown: 0.0, attack_radius: 100.0 })
+                                .build();
 
-                // Spend resources!
-                // TODO: Make the cost tunable in data somehow.
-                self.world.write_resource::<BuildResources>().bits -= 10;
+                            // Spend resources!
+                            // TODO: Make the cost tunable in data somehow.
+                            self.world.write_resource::<BuildResources>().bits -= 10;
 
-                println!("Built tower at {:?}!", (world_x, world_y));
-            };
+                            println!("Built tower at {:?}!", (world_x, world_y));
+                        };
+                    }
+                }
+                (MouseAction::BuildTower, MouseButton::Right) => {
+                    // If right clicking, cancel the tower building action.
+                    self.mouse_action = MouseAction::Select;
+                }
+                _ => {}
+            }
         }
     }
 
-    fn key_down_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods, repeat: bool) {
+    fn key_down_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods, repeat: bool) {
         // Debug UI is taking keyboard input, so ignore this key.
         if self.debug_ui.io().want_capture_keyboard {
             return;
@@ -101,8 +123,9 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             return;
         }
 
+        let play_state = *self.world.read_resource::<PlayState>();
+
         match keycode {
-            KeyCode::Escape => event::quit(ctx),
             KeyCode::R => {
                 self.level_request = LoadLevelRequest::Reload;
             }
@@ -110,6 +133,18 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
                 self.show_debug_ui = !self.show_debug_ui;
             }
             _ => {}
+        }
+
+        if play_state == PlayState::Play {
+            match keycode {
+                KeyCode::B if self.mouse_action == MouseAction::Select => {
+                    self.mouse_action = MouseAction::BuildTower;
+                }
+                KeyCode::Escape if self.mouse_action == MouseAction::BuildTower => {
+                    self.mouse_action = MouseAction::Select;
+                }
+                _ => {}
+            }
         }
     }
 
@@ -125,14 +160,25 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
         // Call maintain to update all entities created via input events.
         self.world.maintain();
 
-        if let LoadLevelRequest::Reload = self.level_request {
-            level::load_level(&self.current_level, &mut self.world);
-            self.level_request = LoadLevelRequest::None;
-        } else if let LoadLevelRequest::NewLevel(level_name) = &self.level_request {
+        let level_to_load = match &self.level_request {
+            LoadLevelRequest::Reload => Some(&self.current_level),
+            LoadLevelRequest::NewLevel(level_name) => Some(level_name),
+            LoadLevelRequest::None => None,
+        };
+
+        if let Some(level_name) = level_to_load {
             level::load_level(level_name, &mut self.world);
             self.current_level = level_name.clone();
             self.level_request = LoadLevelRequest::None;
+            self.mouse_action = MouseAction::Select;
         } else {
+            let play_state = *self.world.read_resource::<PlayState>();
+
+            if play_state != PlayState::Play {
+                self.mouse_action = MouseAction::Select;
+            }
+
+            // Update world resources.
             {
                 // Sets the time and updates it
                 let duration = timer::duration_to_f64(timer::delta(ctx));
@@ -145,7 +191,7 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
                 death_events.clear();
             }
 
-            if *self.world.read_resource::<PlayState>() == PlayState::Play {
+            if play_state == PlayState::Play {
                 self.dispatcher.dispatch(&mut self.world);
 
                 // Update all entities created/deleted in systems.
@@ -171,6 +217,8 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             Read<PlayState>,
         ) = self.world.system_data();
         let (transforms, drawables, shooters, build_resources, grid, play_state) = system_data;
+
+        let play_state = *play_state;
 
         // Draw the grid first.
         let grid_mesh = {
@@ -250,6 +298,7 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
                         graphics::Color::from_rgb(100, 100, 100),
                     )?
                 },
+                // TODO: Draw the Sun on top of the grid and the grid selection highlight.
                 Drawable::Sun => {
                     graphics::Mesh::new_circle(
                         ctx,
@@ -263,6 +312,26 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             };
 
             graphics::draw(ctx, &mesh, graphics::DrawParam::default().dest(transform.position))?;
+        }
+
+        // When building, highlight the grid cell the mouse is hovering over.
+        if self.mouse_action == MouseAction::BuildTower {
+            let mouse_pos = input::mouse::position(ctx);
+            let (cell_x, cell_y) = ((mouse_pos.x / grid.cell_size) as u32, (mouse_pos.y / grid.cell_size) as u32);
+            if let Some(cell) = grid.get_cell(cell_x, cell_y) {
+                let color = if cell == GridCell::Buildable {
+                    graphics::Color::from_rgba(0, 0, 127, 127)
+                } else {
+                    graphics::Color::from_rgba(127, 0, 0, 127)
+                };
+                let mesh = graphics::Mesh::new_rectangle(
+                    ctx,
+                    graphics::DrawMode::fill(),
+                    graphics::Rect::new(cell_x as f32 * grid.cell_size, cell_y as f32 * grid.cell_size, grid.cell_size, grid.cell_size),
+                    color,
+                )?;
+                graphics::draw(ctx, &mesh, graphics::DrawParam::default())?;
+            }
         }
 
         // Draw shooter's attack radius.
@@ -280,24 +349,6 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
             }
         }
 
-        // Highlight the grid cell the mouse is hovering over.
-        let mouse_pos = input::mouse::position(ctx);
-        let (cell_x, cell_y) = ((mouse_pos.x / grid.cell_size) as u32, (mouse_pos.y / grid.cell_size) as u32);
-        if let Some(cell) = grid.get_cell(cell_x, cell_y) {
-            let color = if cell == GridCell::Buildable {
-                graphics::Color::from_rgba(0, 0, 127, 127)
-            } else {
-                graphics::Color::from_rgba(127, 0, 0, 127)
-            };
-            let mesh = graphics::Mesh::new_rectangle(
-                ctx,
-                graphics::DrawMode::fill(),
-                graphics::Rect::new(cell_x as f32 * grid.cell_size, cell_y as f32 * grid.cell_size, grid.cell_size, grid.cell_size),
-                color,
-            )?;
-            graphics::draw(ctx, &mesh, graphics::DrawParam::default())?;
-        }
-
         // Draw amount of bits.
         // TODO: This ggez API to right-align text is dumb. I don't want to have to specify a
         // bounding size, just let me right-align the text.
@@ -309,7 +360,7 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
                 .dest([390.0, 10.0]),
         )?;
 
-        match *play_state {
+        match play_state {
             PlayState::Win => {
                 graphics::draw(
                     ctx,
@@ -330,13 +381,13 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
         }
 
         // Build and draw the debug UI.
-        if self.show_debug_ui {
-            let level_request = &mut self.level_request;
-            let level_list = &self.level_list;
-            let current_level = &self.current_level;
-            self.debug_ui.draw_ui(ctx, |ui| {
-                //ui.show_demo_window(&mut true);
-
+        let level_request = &mut self.level_request;
+        let level_list = &self.level_list;
+        let current_level = &self.current_level;
+        let mouse_action = &mut self.mouse_action;
+        let show_debug_ui = self.show_debug_ui;
+        self.debug_ui.draw_ui(ctx, |ui| {
+            if show_debug_ui {
                 ui.main_menu_bar(|| {
                     ui.menu(im_str!("Level")).build(|| {
                         ui.menu(im_str!("Load")).build(|| {
@@ -357,8 +408,31 @@ impl<'a, 'b> ggez::event::EventHandler for State<'a, 'b> {
                         }
                     });
                 });
-            });
-        }
+            }
+
+            //ui.show_demo_window(&mut true);
+
+            if play_state == PlayState::Play {
+                ui.window(im_str!("Towers"))
+                    .position([500.0, 500.0], imgui::Condition::Always)
+                    .size([300.0, 100.0], imgui::Condition::Always)
+                    .resizable(false)
+                    .movable(false)
+                    .collapsible(false)
+                    .build(|| {
+                        let build_button_text = match mouse_action {
+                            MouseAction::Select => im_str!("Build Tower (B)"),
+                            MouseAction::BuildTower => im_str!("Cancel Build (Esc)"),
+                        };
+                        if ui.button(build_button_text, [120.0, 60.0]) {
+                            *mouse_action = match mouse_action {
+                                MouseAction::Select => MouseAction::BuildTower,
+                                MouseAction::BuildTower => MouseAction::Select,
+                            };
+                        }
+                    });
+            }
+        });
 
         // NOTE: Add any over-UI rendering here.
 
@@ -405,6 +479,8 @@ impl<'a, 'b> State<'a, 'b> {
             dispatcher,
             current_level: start_level.to_owned(),
             level_request: LoadLevelRequest::None,
+
+            mouse_action: MouseAction::Select,
 
             debug_ui,
             show_debug_ui: false,
